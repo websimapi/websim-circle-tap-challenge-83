@@ -55,10 +55,19 @@ export function fadeOutMusic(duration = 0.5) {
     backgroundMusicGain.gain.linearRampToValueAtTime(0.0001, now + duration);
 }
 
+// Instant mute for replay to prevent overlap
+export function stopMusicForReplay() {
+    if (!backgroundMusicGain || !audioCtx) return;
+    const now = audioCtx.currentTime;
+    backgroundMusicGain.gain.cancelScheduledValues(now);
+    backgroundMusicGain.gain.setValueAtTime(0, now);
+}
+
 export function fadeInMusic(duration = 1.0) {
     if (!backgroundMusicGain || !audioCtx) return;
     const now = audioCtx.currentTime;
     backgroundMusicGain.gain.cancelScheduledValues(now);
+    backgroundMusicGain.gain.setValueAtTime(0, now); // Start from 0
     backgroundMusicGain.gain.linearRampToValueAtTime(MAX_MUSIC_VOLUME, now + duration);
 }
 
@@ -149,12 +158,11 @@ export async function playBackgroundMusic() {
 }
 
 
+const audioDataBuffer = new Uint8Array(128); // Reusable buffer
 export function getAudioData() {
     if (!analyser) return null;
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-    analyser.getByteFrequencyData(dataArray);
-    return dataArray;
+    analyser.getByteFrequencyData(audioDataBuffer);
+    return audioDataBuffer;
 }
 
 export function playSuccess() {

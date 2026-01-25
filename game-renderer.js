@@ -51,9 +51,10 @@ export class GameRenderer {
     }
 
     drawVisualizer(pulseAmount, currentColorHsl) {
-        if (pulseAmount <= 0.1) return;
+        // Lowered threshold for sensitivity
+        if (pulseAmount <= 0.02) return;
 
-        const pulseColor = currentColorHsl.copy({opacity: pulseAmount * 0.3});
+        const pulseColor = currentColorHsl.copy({opacity: Math.min(1, pulseAmount * 0.5)});
 
         if (this.customPoints) {
             const points = this.customPoints;

@@ -2,7 +2,7 @@ import { Game } from './game.js';
 import { UIController } from './ui.js';
 import { submitScore, migrateUserScores } from './leaderboard-api.js';
 import { showReplay, hideReplay } from './replay.js';
-import { playBackgroundMusic, fadeInMusic, fadeOutMusic, setMusicMuted, setSFXMuted } from './audio.js';
+import { playBackgroundMusic, fadeInMusic, fadeOutMusic, stopMusicForReplay, setMusicMuted, setSFXMuted } from './audio.js';
 import { LeaderboardController } from './leaderboard-controller.js';
 import { InputController } from './input-controller.js';
 import { VSManager } from './vs-manager.js';
@@ -83,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const leaderboardController = new LeaderboardController(elements, ui, {
         onReplay: (replayData) => {
             replayOrigin = 'leaderboard';
-            fadeOutMusic();
+            stopMusicForReplay(); // Instant stop
             elements.leaderboardView.classList.add('hidden');
             ui.showReplayContainer();
             showReplay(replayData);
@@ -380,7 +380,7 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.replayBtn.addEventListener('click', async () => {
         handleFirstInteraction();
         replayOrigin = 'gameover';
-        fadeOutMusic();
+        stopMusicForReplay(); // Instant stop to prevent overlap
         ui.showReplayContainer();
         
         if (!game.replayConfig.currentUser) {

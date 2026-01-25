@@ -81,9 +81,12 @@
     display: flex;
     justify-content: center;
     z-index: 10;
+    pointer-events: none; /* Allow click-through for layout, enable for children */
 }
 
 .setting-item {
+    pointer-events: auto; /* Re-enable clicks */
+    touch-action: auto;   /* Re-enable native touch for inputs */
     background: rgba(0,0,0,0.5);
     padding: 8px 16px;
     border-radius: 20px;
