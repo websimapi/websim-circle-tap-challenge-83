@@ -160,7 +160,7 @@ export class CustomLevelCreator {
         const centerY = (minY + maxY) / 2;
 
         // Resample before saving for consistency
-        const resampled = resamplePath(this.points, 200);
+        const resampled = resamplePath(this.points, 120);
 
         // Normalize
         const normalizedPoints = resampled.map(p => ({

@@ -20,7 +20,7 @@ const Visualizer = ({ pulseAmount, targetColor, radius, lineWidth, customPath })
           strokeLinejoin: "round",
           style: {
             filter: `drop-shadow(0 0 ${glowRadius}px ${baseColor})`,
-            opacity: pulseAmount * 0.6
+            opacity: Math.min(1, 0.2 + pulseAmount * 0.8)
           }
         },
         void 0,
@@ -42,7 +42,7 @@ const Visualizer = ({ pulseAmount, targetColor, radius, lineWidth, customPath })
           strokeLinejoin: "round",
           style: {
             filter: `drop-shadow(0 0 ${intenseRadius}px ${baseColor})`,
-            opacity: pulseAmount * 0.9
+            opacity: Math.min(1, 0.3 + pulseAmount * 0.9)
           }
         },
         void 0,

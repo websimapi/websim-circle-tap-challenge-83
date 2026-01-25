@@ -17,11 +17,14 @@ export class GameRenderer {
         this.lineWidth = 0;
         this.currentDifficulty = 'easy';
         this.customPoints = null; // Normalized points for custom map
+        this.screenPoints = null; // Scaled points for current resolution
+        this.customPath = null; // Path2D cache
         this.smoothedPulse = 0;
     }
 
     setCustomMap(points) {
         this.customPoints = points;
+        this.updateCachedPaths();
     }
 
     resize(difficulty) {
@@ -43,12 +46,41 @@ export class GameRenderer {
         this.radius = this.gameSize * 0.35; 
         const conf = difficulties[this.currentDifficulty] || difficulties['easy'];
         this.lineWidth = this.gameSize * conf.trackWidthFactor;
+
+        if (this.customPoints) {
+            this.updateCachedPaths();
+        }
         
         return {
             size: this.gameSize,
             radius: this.radius,
             lineWidth: this.lineWidth
         };
+    }
+
+    updateCachedPaths() {
+        if (!this.customPoints || this.customPoints.length === 0) {
+            this.screenPoints = null;
+            this.customPath = null;
+            return;
+        }
+
+        // Pre-calculate screen coordinates to avoid per-frame mapping
+        this.screenPoints = this.customPoints.map(p => ({
+            x: p.x * (this.gameSize * 0.85),
+            y: p.y * (this.gameSize * 0.85)
+        }));
+
+        // Create Path2D for efficient rendering of the main shape
+        const path = new Path2D();
+        if (this.screenPoints.length > 0) {
+            path.moveTo(this.screenPoints[0].x, this.screenPoints[0].y);
+            for(let i=1; i<this.screenPoints.length; i++) {
+                path.lineTo(this.screenPoints[i].x, this.screenPoints[i].y);
+            }
+            path.closePath();
+        }
+        this.customPath = path;
     }
 
     drawVisualizer(pulseAmount, currentColorHsl) {
@@ -61,46 +93,26 @@ export class GameRenderer {
 
         const pulseColor = currentColorHsl.copy();
         
-        if (this.customPoints) {
-            const points = this.customPoints;
-            const len = points.length;
-            
+        if (this.customPoints && this.customPath) {
             this.ctx.lineJoin = 'round';
             this.ctx.lineCap = 'round';
 
-            // Re-create path once
-            this.ctx.beginPath();
-            const start = this.scalePoint(points[0]);
-            this.ctx.moveTo(start.x, start.y);
-            for(let i=1; i<len; i++) {
-                const p = this.scalePoint(points[i]);
-                this.ctx.lineTo(p.x, p.y);
-            }
-            this.ctx.closePath();
-
-            // Use shadowBlur for smooth gradient glow
             const colorStr = currentColorHsl.toString();
             
             this.ctx.shadowColor = colorStr;
             this.ctx.strokeStyle = colorStr;
 
-            // Pass 1: Wide, faint ambient glow
+            // Pass 1: Wide, faint ambient glow (Boosted Alpha)
             this.ctx.shadowBlur = this.lineWidth * 4 * (0.5 + pulseAmount);
             this.ctx.lineWidth = this.lineWidth;
-            this.ctx.globalAlpha = 0.4 * pulseAmount;
-            this.ctx.stroke();
+            this.ctx.globalAlpha = Math.min(1, 0.6 * pulseAmount + 0.1); 
+            this.ctx.stroke(this.customPath);
 
-            // Pass 2: Tighter, brighter glow
-            this.ctx.shadowBlur = this.lineWidth * 1.5 * (0.5 + pulseAmount);
-            this.ctx.lineWidth = this.lineWidth * 0.8;
-            this.ctx.globalAlpha = 0.8 * pulseAmount;
-            this.ctx.stroke();
-
-            // Pass 3: Core intense line
-            this.ctx.shadowBlur = this.lineWidth * 0.5;
-            this.ctx.lineWidth = this.lineWidth * 0.5;
-            this.ctx.globalAlpha = 1.0 * pulseAmount;
-            this.ctx.stroke();
+            // Pass 2: Core intense line (Boosted Alpha)
+            this.ctx.shadowBlur = this.lineWidth * 0.8;
+            this.ctx.lineWidth = this.lineWidth * 0.6;
+            this.ctx.globalAlpha = Math.min(1, 1.0 * pulseAmount + 0.2);
+            this.ctx.stroke(this.customPath);
 
             // Reset shadow
             this.ctx.shadowBlur = 0;
@@ -281,22 +293,17 @@ export class GameRenderer {
     }
 
     drawCustomPath(state) {
+        if (!this.screenPoints || !this.customPath) return;
+
         const { currentColorHsl, targetSize, targetStartAngle, failTap, angle } = state;
-        const points = this.customPoints;
+        const points = this.screenPoints;
         const len = points.length;
 
-        // Draw full track
-        this.ctx.beginPath();
-        const start = this.scalePoint(points[0]);
-        this.ctx.moveTo(start.x, start.y);
-        for(let i=1; i<len; i++) {
-            const p = this.scalePoint(points[i]);
-            this.ctx.lineTo(p.x, p.y);
-        }
+        // Draw full track using cached Path2D
         this.ctx.strokeStyle = this.colors.secondary;
         this.ctx.lineWidth = this.lineWidth;
         this.ctx.lineCap = 'round';
-        this.ctx.stroke();
+        this.ctx.stroke(this.customPath);
 
         // Helper to get index from angle (0..2PI -> 0..len)
         const getIndex = (ang) => {
@@ -305,35 +312,34 @@ export class GameRenderer {
             return Math.floor(progress * (len - 1));
         };
 
-        // Draw Target Zone
-        // Target is an arc in domain 0..2PI. We draw the segment of points corresponding to it.
+        // Draw Target Zone (Segmented)
         if (targetSize > 0) {
             this.ctx.beginPath();
-            // We need to handle wrapping manually since it's a list of points
+            
             const startIdx = getIndex(targetStartAngle);
             const endAngle = targetStartAngle + targetSize;
             const endIdx = getIndex(endAngle);
             
-            const startP = this.scalePoint(points[startIdx]);
+            const startP = points[startIdx];
             this.ctx.moveTo(startP.x, startP.y);
 
             // If wrap around
             if (endAngle > Math.PI * 2) {
                 // Draw to end
                 for(let i = startIdx + 1; i < len; i++) {
-                    const p = this.scalePoint(points[i]);
+                    const p = points[i];
                     this.ctx.lineTo(p.x, p.y);
                 }
                 // Draw from start
                 const realEndIdx = getIndex(endAngle % (Math.PI * 2));
-                this.ctx.moveTo(this.scalePoint(points[0]).x, this.scalePoint(points[0]).y); // Gap fix
+                this.ctx.moveTo(points[0].x, points[0].y); // Gap fix
                  for(let i = 0; i <= realEndIdx; i++) {
-                    const p = this.scalePoint(points[i]);
+                    const p = points[i];
                     this.ctx.lineTo(p.x, p.y);
                 }
             } else {
                 for(let i = startIdx + 1; i <= endIdx; i++) {
-                    const p = this.scalePoint(points[i]);
+                    const p = points[i];
                     this.ctx.lineTo(p.x, p.y);
                 }
             }
@@ -346,17 +352,14 @@ export class GameRenderer {
         
         // Draw Fail Indicator
         if (failTap) {
-            // Need custom fail indicator drawing
-            // Reuse generic, but we need to position it at the specific point
              const age = (performance.now() - failTap.timestamp) / 1000;
              if (age < 3) {
                  const opacity = Math.max(0, 1 - (age / 3));
                  const idx = getIndex(failTap.angle);
-                 const p = this.scalePoint(points[idx]);
+                 const p = points[idx];
                  
                  this.ctx.save();
                  this.ctx.translate(p.x, p.y);
-                 // No rotation logic for 'X' in custom yet, just flat
                  
                  const failColor = hsl(this.colors.fail);
                  failColor.opacity = opacity;
@@ -376,21 +379,12 @@ export class GameRenderer {
 
         // Draw Cursor
         const cursorIdx = getIndex(angle);
-        const cursorP = this.scalePoint(points[cursorIdx]);
+        const cursorP = points[cursorIdx];
         
         this.ctx.beginPath();
         this.ctx.arc(cursorP.x, cursorP.y, this.lineWidth / 2, 0, Math.PI*2);
         this.ctx.fillStyle = this.colors.fail;
         this.ctx.fill();
-    }
-
-    scalePoint(p) {
-        // Points are normalized around 0,0. Scale by size/2 roughly
-        // Scale down slightly to allow room for glow effects (0.85 factor)
-        return {
-            x: p.x * (this.gameSize * 0.85),
-            y: p.y * (this.gameSize * 0.85)
-        };
     }
 
     drawFailIndicator(failTap, isCircular) {
