@@ -177,7 +177,8 @@ export class Game {
             difficulties,
             colors: this.colors,
             mode: this.mode,
-            opponent: opponentInfo
+            opponent: opponentInfo,
+            customMapData: this.customMapData
         };
         
         if (this.onScoreUpdate) this.onScoreUpdate(this.score);
