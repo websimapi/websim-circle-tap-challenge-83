@@ -53,12 +53,47 @@ export class GameRenderer {
     drawVisualizer(pulseAmount, currentColorHsl) {
         if (pulseAmount <= 0.1) return;
 
+        const pulseColor = currentColorHsl.copy({opacity: pulseAmount * 0.3});
+
+        if (this.customPoints) {
+            const points = this.customPoints;
+            const len = points.length;
+            
+            this.ctx.save();
+            this.ctx.translate(this.size / 2, this.size / 2);
+            this.ctx.lineJoin = 'round';
+            this.ctx.lineCap = 'round';
+
+            const baseWidth = this.lineWidth;
+            const extraWidth = this.lineWidth * 1.5 * pulseAmount;
+            
+            this.ctx.beginPath();
+            const start = this.scalePoint(points[0]);
+            this.ctx.moveTo(start.x, start.y);
+            for(let i=1; i<len; i++) {
+                const p = this.scalePoint(points[i]);
+                this.ctx.lineTo(p.x, p.y);
+            }
+            this.ctx.closePath();
+
+            // Layer 1: Wide faint glow
+            this.ctx.strokeStyle = pulseColor.copy({opacity: pulseAmount * 0.15}).toString();
+            this.ctx.lineWidth = baseWidth + extraWidth * 2.5;
+            this.ctx.stroke();
+
+            // Layer 2: Medium glow
+            this.ctx.strokeStyle = pulseColor.toString();
+            this.ctx.lineWidth = baseWidth + extraWidth;
+            this.ctx.stroke();
+
+            this.ctx.restore();
+            return;
+        }
+
         const centerX = this.size / 2;
         const centerY = this.size / 2;
         const outerRadius = this.radius + this.lineWidth / 2;
         const innerRadius = this.radius - this.lineWidth / 2;
-
-        const pulseColor = currentColorHsl.copy({opacity: pulseAmount * 0.3});
 
         // --- Outer Pulse ---
         const maxOuterPulse = this.lineWidth * 0.8;
