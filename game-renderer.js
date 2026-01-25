@@ -62,6 +62,23 @@ export class GameRenderer {
         const pulseColor = currentColorHsl.copy();
         
         if (this.customPoints) {
+            // Ambient Bloom for Custom Maps (Background)
+            const bloomRadius = this.gameSize * 0.6; 
+            const bloomGradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, bloomRadius);
+            
+            pulseColor.opacity = 0;
+            bloomGradient.addColorStop(0, pulseColor.toString()); 
+            pulseColor.opacity = pulseAmount * 0.15;
+            bloomGradient.addColorStop(0.5, pulseColor.toString());
+            pulseColor.opacity = 0;
+            bloomGradient.addColorStop(1, pulseColor.toString());
+            
+            this.ctx.fillStyle = bloomGradient;
+            this.ctx.beginPath();
+            this.ctx.arc(0, 0, bloomRadius, 0, Math.PI*2);
+            this.ctx.fill();
+
+            // Custom Path Glow layers
             const points = this.customPoints;
             const len = points.length;
             
@@ -80,22 +97,22 @@ export class GameRenderer {
             }
             this.ctx.closePath();
 
-            // Layer 1: Very wide, very faint atmospheric glow
-            pulseColor.opacity = pulseAmount * 0.2;
+            // Layer 1: Atmospheric very wide glow
+            pulseColor.opacity = pulseAmount * 0.15;
+            this.ctx.strokeStyle = pulseColor.toString();
+            this.ctx.lineWidth = baseWidth + (pulseAmount * this.gameSize * 0.4);
+            this.ctx.stroke();
+
+            // Layer 2: Wide glow
+            pulseColor.opacity = pulseAmount * 0.25;
             this.ctx.strokeStyle = pulseColor.toString();
             this.ctx.lineWidth = baseWidth + (pulseAmount * this.gameSize * 0.2);
             this.ctx.stroke();
 
-            // Layer 2: Medium wide glow
-            pulseColor.opacity = pulseAmount * 0.3;
+            // Layer 3: Core glow
+            pulseColor.opacity = pulseAmount * 0.4;
             this.ctx.strokeStyle = pulseColor.toString();
-            this.ctx.lineWidth = baseWidth + (pulseAmount * this.gameSize * 0.1);
-            this.ctx.stroke();
-
-            // Layer 3: Core intense glow
-            pulseColor.opacity = pulseAmount * 0.5;
-            this.ctx.strokeStyle = pulseColor.toString();
-            this.ctx.lineWidth = baseWidth + (pulseAmount * this.gameSize * 0.03);
+            this.ctx.lineWidth = baseWidth + (pulseAmount * this.gameSize * 0.05);
             this.ctx.stroke();
 
         } else {
