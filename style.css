@@ -55,7 +55,8 @@ html, body {
 }
 
 #game-canvas.circle-mode {
-    border-radius: 50%;
+    /* border-radius removed to prevent particle clipping at corners */
+    border-radius: 12px;
     box-shadow: 0 0 30px rgba(0,0,0,0.6);
 }
 

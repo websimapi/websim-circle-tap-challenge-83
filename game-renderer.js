@@ -33,7 +33,8 @@ export class GameRenderer {
         const parentHeight = parent.offsetHeight;
         const minDimension = Math.min(parentWidth, parentHeight);
         
-        const canvasSize = minDimension * 0.9;
+        // Increase canvas size relative to parent to avoid clipping
+        const canvasSize = minDimension * 0.95;
         
         this.canvas.style.width = `${canvasSize}px`;
         this.canvas.style.height = `${canvasSize}px`;
@@ -42,7 +43,8 @@ export class GameRenderer {
         this.canvas.width = this.size;
         this.canvas.height = this.size;
         
-        this.radius = this.size * 0.4;
+        // Reduced radius to 0.3 to allow particles to blow out without clipping
+        this.radius = this.size * 0.3;
         const conf = difficulties[this.currentDifficulty] || difficulties['easy'];
         this.lineWidth = this.size * conf.trackWidthFactor;
         
@@ -96,17 +98,17 @@ export class GameRenderer {
                 y = Math.sin(angle) * this.radius;
             }
 
-            // Velocity: Drifting outward with some randomness
-            const speed = (20 + Math.random() * 50) * (0.5 + pulseAmount); 
+            // Velocity: Explosive outward movement with lava-like flow
+            const speed = (this.size * 0.3 + Math.random() * this.size * 0.4) * (0.2 + pulseAmount * 1.5); 
             const vx = Math.cos(angle) * speed;
             const vy = Math.sin(angle) * speed;
 
             this.particles.push({
                 x, y, vx, vy,
                 life: 1.0,
-                decay: 1.0 + Math.random(), // Random decay speed
-                size: (this.lineWidth * 0.4) * (0.5 + Math.random()),
-                color: color.toString() // Capture current color string
+                decay: 0.5 + Math.random() * 0.8, // Slower decay for longer trails
+                size: (this.lineWidth * 0.6) * (0.5 + Math.random()),
+                color: color.toString()
             });
         }
     }
@@ -424,11 +426,12 @@ export class GameRenderer {
 
     scalePoint(p) {
         // Points are normalized around 0,0. Scale by size/2 roughly
-        // The creator normalized them to roughly -0.5 to 0.5 range (scaled by size)
-        // so we multiply by this.size
+        // The creator normalized them to roughly -0.5 to 0.5 range.
+        // We scale down slightly (0.75) to ensure they fit with room for particles
+        const scale = this.size * 0.75;
         return {
-            x: p.x * this.size,
-            y: p.y * this.size
+            x: p.x * scale,
+            y: p.y * scale
         };
     }
 
