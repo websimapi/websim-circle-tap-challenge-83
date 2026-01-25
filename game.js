@@ -80,6 +80,14 @@ export class Game {
 
     setMode(mode, extraData = null) {
         this.mode = mode;
+        
+        // Update Canvas Visual Mode (Circle vs Square)
+        if (mode === 'custom') {
+            this.renderer.canvas.classList.remove('circle-mode');
+        } else {
+            this.renderer.canvas.classList.add('circle-mode');
+        }
+
         if (mode === 'zen') {
              this.gameState = 'playing'; // Auto start for zen
              this.setDifficulty('easy');

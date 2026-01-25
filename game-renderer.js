@@ -15,6 +15,7 @@ export class GameRenderer {
         this.lineWidth = 0;
         this.currentDifficulty = 'easy';
         this.customPoints = null; // Normalized points for custom map
+        this.smoothedPulse = 0;
     }
 
     setCustomMap(points) {
@@ -51,23 +52,25 @@ export class GameRenderer {
     }
 
     drawVisualizer(pulseAmount, currentColorHsl) {
-        // Lowered threshold for sensitivity
-        if (pulseAmount <= 0.02) return;
+        if (pulseAmount <= 0.01) return;
 
-        const pulseColor = currentColorHsl.copy({opacity: Math.min(1, pulseAmount * 0.5)});
+        // Use additive blending for a glowing effect
+        this.ctx.save();
+        this.ctx.globalCompositeOperation = 'lighter';
 
+        const pulseColor = currentColorHsl.copy();
+        
         if (this.customPoints) {
             const points = this.customPoints;
             const len = points.length;
             
-            this.ctx.save();
             this.ctx.translate(this.size / 2, this.size / 2);
             this.ctx.lineJoin = 'round';
             this.ctx.lineCap = 'round';
 
             const baseWidth = this.lineWidth;
-            const extraWidth = this.lineWidth * 1.5 * pulseAmount;
             
+            // Re-create path once
             this.ctx.beginPath();
             const start = this.scalePoint(points[0]);
             this.ctx.moveTo(start.x, start.y);
@@ -77,48 +80,77 @@ export class GameRenderer {
             }
             this.ctx.closePath();
 
-            // Layer 1: Wide faint glow
-            this.ctx.strokeStyle = pulseColor.copy({opacity: pulseAmount * 0.15}).toString();
-            this.ctx.lineWidth = baseWidth + extraWidth * 2.5;
-            this.ctx.stroke();
-
-            // Layer 2: Medium glow
+            // Layer 1: Very wide, very faint atmospheric glow
+            pulseColor.opacity = pulseAmount * 0.2;
             this.ctx.strokeStyle = pulseColor.toString();
-            this.ctx.lineWidth = baseWidth + extraWidth;
+            this.ctx.lineWidth = baseWidth + (pulseAmount * 60);
             this.ctx.stroke();
 
-            this.ctx.restore();
-            return;
+            // Layer 2: Medium wide glow
+            pulseColor.opacity = pulseAmount * 0.3;
+            this.ctx.strokeStyle = pulseColor.toString();
+            this.ctx.lineWidth = baseWidth + (pulseAmount * 30);
+            this.ctx.stroke();
+
+            // Layer 3: Core intense glow
+            pulseColor.opacity = pulseAmount * 0.5;
+            this.ctx.strokeStyle = pulseColor.toString();
+            this.ctx.lineWidth = baseWidth + (pulseAmount * 10);
+            this.ctx.stroke();
+
+        } else {
+            const centerX = this.size / 2;
+            const centerY = this.size / 2;
+            
+            // Standard Mode: Radial Pulse Waves
+            // We draw 2 main gradient pulses: one expanding out, one internal
+
+            // Outer Glow
+            const outerRadiusMax = this.radius * (1 + pulseAmount * 0.6);
+            const outerGradient = this.ctx.createRadialGradient(centerX, centerY, this.radius, centerX, centerY, outerRadiusMax);
+            
+            pulseColor.opacity = pulseAmount * 0.6;
+            outerGradient.addColorStop(0, pulseColor.toString());
+            
+            pulseColor.opacity = 0;
+            outerGradient.addColorStop(1, pulseColor.toString());
+
+            this.ctx.fillStyle = outerGradient;
+            this.ctx.beginPath();
+            this.ctx.arc(centerX, centerY, outerRadiusMax, 0, Math.PI*2);
+            this.ctx.fill();
+
+            // Inner Glow
+            const innerRadiusMin = Math.max(0, this.radius * (1 - pulseAmount * 0.5));
+            const innerGradient = this.ctx.createRadialGradient(centerX, centerY, innerRadiusMin, centerX, centerY, this.radius);
+            
+            pulseColor.opacity = 0;
+            innerGradient.addColorStop(0, pulseColor.toString());
+            
+            pulseColor.opacity = pulseAmount * 0.5;
+            innerGradient.addColorStop(1, pulseColor.toString());
+
+            this.ctx.fillStyle = innerGradient;
+            this.ctx.beginPath();
+            this.ctx.arc(centerX, centerY, this.radius, 0, Math.PI*2);
+            this.ctx.fill();
+
+            // Core Bloom
+            const bloomRadius = this.radius * 1.1;
+            const bloomGradient = this.ctx.createRadialGradient(centerX, centerY, this.radius * 0.8, centerX, centerY, bloomRadius);
+            
+            pulseColor.opacity = 0;
+            bloomGradient.addColorStop(0, pulseColor.toString());
+            pulseColor.opacity = pulseAmount * 0.2;
+            bloomGradient.addColorStop(0.5, pulseColor.toString());
+            pulseColor.opacity = 0;
+            bloomGradient.addColorStop(1, pulseColor.toString());
+            
+            this.ctx.fillStyle = bloomGradient;
+            this.ctx.fillRect(0,0,this.size,this.size);
         }
 
-        const centerX = this.size / 2;
-        const centerY = this.size / 2;
-        const outerRadius = this.radius + this.lineWidth / 2;
-        const innerRadius = this.radius - this.lineWidth / 2;
-
-        // --- Outer Pulse ---
-        const maxOuterPulse = this.lineWidth * 0.8;
-        const pulseOuterRadius = outerRadius + (pulseAmount * maxOuterPulse);
-        
-        const outerGradient = this.ctx.createRadialGradient(centerX, centerY, outerRadius, centerX, centerY, pulseOuterRadius);
-        outerGradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
-        outerGradient.addColorStop(0.8, pulseColor.toString());
-        outerGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        
-        this.ctx.fillStyle = outerGradient;
-        this.ctx.fillRect(0, 0, this.size, this.size);
-
-        // --- Inner Pulse ---
-        const maxInnerPulse = innerRadius * 0.7; 
-        const pulseInnerRadius = innerRadius - (pulseAmount * maxInnerPulse);
-
-        const innerGradient = this.ctx.createRadialGradient(centerX, centerY, pulseInnerRadius, centerX, centerY, innerRadius);
-        innerGradient.addColorStop(0, 'rgba(0,0,0,0)');
-        innerGradient.addColorStop(0.5, pulseColor.toString());
-        innerGradient.addColorStop(1, 'rgba(0,0,0,0)');
-
-        this.ctx.fillStyle = innerGradient;
-        this.ctx.fillRect(0, 0, this.size, this.size);
+        this.ctx.restore();
     }
 
     draw(state) {
@@ -133,22 +165,28 @@ export class GameRenderer {
             replayFrame 
         } = state;
 
-        // Visualizer
+        // Visualizer with Smoothing
         const audioData = getAudioData();
-        let pulseAmount = 0;
+        let targetPulse = 0;
         if (audioData) {
             let bass = 0;
-            for (let i = 0; i < 5; i++) {
+            // Use slightly more bins for richness
+            for (let i = 0; i < 8; i++) {
                 bass += audioData[i];
             }
-            bass /= 5;
-            pulseAmount = (bass / 255);
-            this.drawVisualizer(pulseAmount, currentColorHsl);
+            bass /= 8;
+            targetPulse = (bass / 255);
         }
+        
+        // Smooth the pulse
+        this.smoothedPulse += (targetPulse - this.smoothedPulse) * 0.3;
+        
+        // Draw Visualizer
+        this.drawVisualizer(this.smoothedPulse, currentColorHsl);
 
         // Store pulse for replay
         if(replayFrame) {
-            replayFrame.pulseAmount = pulseAmount;
+            replayFrame.pulseAmount = this.smoothedPulse;
         }
 
         this.ctx.save();
