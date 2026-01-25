@@ -62,23 +62,6 @@ export class GameRenderer {
         const pulseColor = currentColorHsl.copy();
         
         if (this.customPoints) {
-            // Ambient Bloom for Custom Maps (Background)
-            const bloomRadius = this.gameSize * 0.6; 
-            const bloomGradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, bloomRadius);
-            
-            pulseColor.opacity = 0;
-            bloomGradient.addColorStop(0, pulseColor.toString()); 
-            pulseColor.opacity = pulseAmount * 0.15;
-            bloomGradient.addColorStop(0.5, pulseColor.toString());
-            pulseColor.opacity = 0;
-            bloomGradient.addColorStop(1, pulseColor.toString());
-            
-            this.ctx.fillStyle = bloomGradient;
-            this.ctx.beginPath();
-            this.ctx.arc(0, 0, bloomRadius, 0, Math.PI*2);
-            this.ctx.fill();
-
-            // Custom Path Glow layers
             const points = this.customPoints;
             const len = points.length;
             
@@ -97,22 +80,28 @@ export class GameRenderer {
             }
             this.ctx.closePath();
 
-            // Layer 1: Atmospheric very wide glow
+            // Layer 1: Wide atmospheric glow (Ambient)
             pulseColor.opacity = pulseAmount * 0.15;
             this.ctx.strokeStyle = pulseColor.toString();
-            this.ctx.lineWidth = baseWidth + (pulseAmount * this.gameSize * 0.4);
+            this.ctx.lineWidth = baseWidth + (pulseAmount * this.gameSize * 0.3);
             this.ctx.stroke();
 
-            // Layer 2: Wide glow
+            // Layer 2: Mid-range soft glow
             pulseColor.opacity = pulseAmount * 0.25;
             this.ctx.strokeStyle = pulseColor.toString();
-            this.ctx.lineWidth = baseWidth + (pulseAmount * this.gameSize * 0.2);
+            this.ctx.lineWidth = baseWidth + (pulseAmount * this.gameSize * 0.15);
             this.ctx.stroke();
 
-            // Layer 3: Core glow
+            // Layer 3: Core brightness
             pulseColor.opacity = pulseAmount * 0.4;
             this.ctx.strokeStyle = pulseColor.toString();
-            this.ctx.lineWidth = baseWidth + (pulseAmount * this.gameSize * 0.05);
+            this.ctx.lineWidth = baseWidth + (pulseAmount * this.gameSize * 0.06);
+            this.ctx.stroke();
+            
+            // Layer 4: Intense center
+            pulseColor.opacity = pulseAmount * 0.6;
+            this.ctx.strokeStyle = pulseColor.toString();
+            this.ctx.lineWidth = baseWidth + (pulseAmount * this.gameSize * 0.01);
             this.ctx.stroke();
 
         } else {
@@ -221,15 +210,43 @@ export class GameRenderer {
         // Draw Dark Background for contrast (was previously box-shadow)
         if (!this.customPoints) {
             const shadowRadius = this.radius * 1.05; // Slightly larger than track
-            const bgGradient = this.ctx.createRadialGradient(0, 0, this.radius * 0.5, 0, 0, shadowRadius + 30);
-            bgGradient.addColorStop(0, 'rgba(0,0,0,0.4)');
-            bgGradient.addColorStop(0.8, 'rgba(0,0,0,0.6)');
+            // Fix: Start gradient at center (0) but keep it transparent until closer to the ring
+            const bgGradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, shadowRadius + 40);
+            bgGradient.addColorStop(0, 'rgba(0,0,0,0)'); // Fully transparent center
+            bgGradient.addColorStop(0.5, 'rgba(0,0,0,0)'); // Remain transparent
+            bgGradient.addColorStop(0.85, 'rgba(0,0,0,0.8)'); // Dark backing near track
             bgGradient.addColorStop(1, 'rgba(0,0,0,0)');
             
             this.ctx.fillStyle = bgGradient;
             this.ctx.beginPath();
-            this.ctx.arc(0, 0, shadowRadius + 30, 0, Math.PI*2);
+            this.ctx.arc(0, 0, shadowRadius + 40, 0, Math.PI*2);
             this.ctx.fill();
+        } else {
+            // Dark contrast backing for Custom Maps
+            const points = this.customPoints;
+            const len = points.length;
+            
+            this.ctx.beginPath();
+            const start = this.scalePoint(points[0]);
+            this.ctx.moveTo(start.x, start.y);
+            for(let i=1; i<len; i++) {
+                const p = this.scalePoint(points[i]);
+                this.ctx.lineTo(p.x, p.y);
+            }
+            this.ctx.closePath();
+            
+            this.ctx.lineCap = 'round';
+            this.ctx.lineJoin = 'round';
+
+            // Wide ambient shadow
+            this.ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+            this.ctx.lineWidth = this.lineWidth * 4;
+            this.ctx.stroke();
+            
+            // Core shadow
+            this.ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+            this.ctx.lineWidth = this.lineWidth * 1.5;
+            this.ctx.stroke();
         }
 
         if (this.customPoints) {
