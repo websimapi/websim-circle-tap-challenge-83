@@ -16,10 +16,12 @@ export class GameRenderer {
         this.currentDifficulty = 'easy';
         this.customPoints = null; // Normalized points for custom map
         this.smoothedPulse = 0;
+        this.particles = [];
     }
 
     setCustomMap(points) {
         this.customPoints = points;
+        this.particles = []; // Clear particles on map change
     }
 
     resize(difficulty) {
@@ -51,7 +53,106 @@ export class GameRenderer {
         };
     }
 
+    spawnParticles(pulseAmount, color) {
+        // Spawn more particles when pulse is stronger
+        const count = Math.floor(pulseAmount * (this.customPoints ? 4 : 2)); 
+        const center = { x: 0, y: 0 }; // Normalized center
+
+        for(let i=0; i<count; i++) {
+            let x, y, angle;
+            
+            if (this.customPoints && this.customPoints.length > 2) {
+                // Randomly pick a segment on the custom path
+                const idx = Math.floor(Math.random() * this.customPoints.length);
+                const p1 = this.customPoints[idx];
+                const p2 = this.customPoints[(idx + 1) % this.customPoints.length];
+                const t = Math.random();
+                
+                // Lerp in normalized space
+                const nx = p1.x + (p2.x - p1.x) * t;
+                const ny = p1.y + (p2.y - p1.y) * t;
+                
+                // Scale to canvas space
+                const scaled = this.scalePoint({x: nx, y: ny});
+                x = scaled.x;
+                y = scaled.y;
+                
+                // Direction: Outward from center of canvas (since normalized points are centered at 0,0)
+                // x,y here are relative to top-left of canvas. Center is size/2.
+                // But scalePoint returns coords relative to top-left assuming input is centered.
+                // scalePoint: x * size + 0? No, scalePoint is x * size. 
+                // Normalized coords are -0.5 to 0.5. So scaled is -size/2 to size/2.
+                // We need to translate them when drawing usually.
+                // Let's store particles in relative coordinates (centered at 0,0) for simplicity.
+                
+                x = nx * this.size;
+                y = ny * this.size;
+                angle = Math.atan2(y, x);
+
+            } else {
+                // Standard Circle
+                angle = Math.random() * Math.PI * 2;
+                x = Math.cos(angle) * this.radius;
+                y = Math.sin(angle) * this.radius;
+            }
+
+            // Velocity: Drifting outward with some randomness
+            const speed = (20 + Math.random() * 50) * (0.5 + pulseAmount); 
+            const vx = Math.cos(angle) * speed;
+            const vy = Math.sin(angle) * speed;
+
+            this.particles.push({
+                x, y, vx, vy,
+                life: 1.0,
+                decay: 1.0 + Math.random(), // Random decay speed
+                size: (this.lineWidth * 0.4) * (0.5 + Math.random()),
+                color: color.toString() // Capture current color string
+            });
+        }
+    }
+
+    updateParticles(deltaTime) {
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            p.x += p.vx * deltaTime;
+            p.y += p.vy * deltaTime;
+            p.life -= p.decay * deltaTime;
+            p.size *= 0.98; // Shrink over time
+            
+            if (p.life <= 0 || p.size < 0.5) {
+                this.particles.splice(i, 1);
+            }
+        }
+    }
+
+    drawParticles() {
+        if (this.particles.length === 0) return;
+
+        this.ctx.save();
+        this.ctx.translate(this.size / 2, this.size / 2); // Center particles
+        this.ctx.globalCompositeOperation = 'lighter'; // Additive blending for "space/lava" glow
+        
+        for (const p of this.particles) {
+            this.ctx.beginPath();
+            this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            this.ctx.fillStyle = p.color;
+            this.ctx.globalAlpha = p.life * 0.8; // Fade out
+            this.ctx.fill();
+        }
+        
+        this.ctx.globalAlpha = 1;
+        this.ctx.restore();
+    }
+
     drawVisualizer(pulseAmount, currentColorHsl) {
+        // Spawn particles based on pulse
+        if (pulseAmount > 0.05) {
+            this.spawnParticles(pulseAmount, currentColorHsl);
+        }
+
+        // Draw the particles
+        this.drawParticles();
+
         if (pulseAmount <= 0.01) return;
 
         // Use additive blending for a glowing effect
@@ -61,6 +162,7 @@ export class GameRenderer {
         const pulseColor = currentColorHsl.copy();
         
         if (this.customPoints) {
+            // Enhanced Custom Visualizer: Glow + Particles (handled above)
             const points = this.customPoints;
             const len = points.length;
             
@@ -68,9 +170,7 @@ export class GameRenderer {
             this.ctx.lineJoin = 'round';
             this.ctx.lineCap = 'round';
 
-            const baseWidth = this.lineWidth;
-            
-            // Re-create path once
+            // Draw a base glow layer
             this.ctx.beginPath();
             const start = this.scalePoint(points[0]);
             this.ctx.moveTo(start.x, start.y);
@@ -80,22 +180,10 @@ export class GameRenderer {
             }
             this.ctx.closePath();
 
-            // Layer 1: Very wide, very faint atmospheric glow
-            pulseColor.opacity = pulseAmount * 0.2;
-            this.ctx.strokeStyle = pulseColor.toString();
-            this.ctx.lineWidth = baseWidth + (pulseAmount * 60);
-            this.ctx.stroke();
-
-            // Layer 2: Medium wide glow
+            // Layer: Wide atmospheric pulse
             pulseColor.opacity = pulseAmount * 0.3;
             this.ctx.strokeStyle = pulseColor.toString();
-            this.ctx.lineWidth = baseWidth + (pulseAmount * 30);
-            this.ctx.stroke();
-
-            // Layer 3: Core intense glow
-            pulseColor.opacity = pulseAmount * 0.5;
-            this.ctx.strokeStyle = pulseColor.toString();
-            this.ctx.lineWidth = baseWidth + (pulseAmount * 10);
+            this.ctx.lineWidth = this.lineWidth + (pulseAmount * 50);
             this.ctx.stroke();
 
         } else {
@@ -103,8 +191,6 @@ export class GameRenderer {
             const centerY = this.size / 2;
             
             // Standard Mode: Radial Pulse Waves
-            // We draw 2 main gradient pulses: one expanding out, one internal
-
             // Outer Glow
             const outerRadiusMax = this.radius * (1 + pulseAmount * 0.6);
             const outerGradient = this.ctx.createRadialGradient(centerX, centerY, this.radius, centerX, centerY, outerRadiusMax);
@@ -134,27 +220,16 @@ export class GameRenderer {
             this.ctx.beginPath();
             this.ctx.arc(centerX, centerY, this.radius, 0, Math.PI*2);
             this.ctx.fill();
-
-            // Core Bloom
-            const bloomRadius = this.radius * 1.1;
-            const bloomGradient = this.ctx.createRadialGradient(centerX, centerY, this.radius * 0.8, centerX, centerY, bloomRadius);
-            
-            pulseColor.opacity = 0;
-            bloomGradient.addColorStop(0, pulseColor.toString());
-            pulseColor.opacity = pulseAmount * 0.2;
-            bloomGradient.addColorStop(0.5, pulseColor.toString());
-            pulseColor.opacity = 0;
-            bloomGradient.addColorStop(1, pulseColor.toString());
-            
-            this.ctx.fillStyle = bloomGradient;
-            this.ctx.fillRect(0,0,this.size,this.size);
         }
 
         this.ctx.restore();
     }
 
-    draw(state) {
+    draw(state, deltaTime = 0.016) {
         this.ctx.clearRect(0, 0, this.size, this.size);
+        
+        // Update particles
+        this.updateParticles(deltaTime);
 
         const { 
             currentColorHsl, 
