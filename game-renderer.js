@@ -55,60 +55,57 @@ export class GameRenderer {
         };
     }
 
-    spawnParticles(pulseAmount, color) {
+    spawnParticles(pulseAmount, color, currentAngle) {
         // Spawn more particles when pulse is stronger
         const count = Math.floor(pulseAmount * (this.customPoints ? 4 : 2)); 
-        const center = { x: 0, y: 0 }; // Normalized center
+
+        let startX, startY, velocityAngle;
+
+        if (this.customPoints && this.customPoints.length > 2) {
+            // Find cursor position on custom path
+            const idx = this.getIndex(currentAngle);
+            const p = this.customPoints[idx];
+            // Scale to canvas space (relative to center)
+            startX = p.x * (this.size * 0.75);
+            startY = p.y * (this.size * 0.75);
+            velocityAngle = Math.atan2(startY, startX);
+        } else {
+            // Standard Circle - spawn at cursor
+            startX = Math.cos(currentAngle) * this.radius;
+            startY = Math.sin(currentAngle) * this.radius;
+            velocityAngle = currentAngle;
+        }
 
         for(let i=0; i<count; i++) {
-            let x, y, angle;
-            
-            if (this.customPoints && this.customPoints.length > 2) {
-                // Randomly pick a segment on the custom path
-                const idx = Math.floor(Math.random() * this.customPoints.length);
-                const p1 = this.customPoints[idx];
-                const p2 = this.customPoints[(idx + 1) % this.customPoints.length];
-                const t = Math.random();
-                
-                // Lerp in normalized space
-                const nx = p1.x + (p2.x - p1.x) * t;
-                const ny = p1.y + (p2.y - p1.y) * t;
-                
-                // Scale to canvas space
-                const scaled = this.scalePoint({x: nx, y: ny});
-                x = scaled.x;
-                y = scaled.y;
-                
-                // Direction: Outward from center of canvas (since normalized points are centered at 0,0)
-                // x,y here are relative to top-left of canvas. Center is size/2.
-                // But scalePoint returns coords relative to top-left assuming input is centered.
-                // scalePoint: x * size + 0? No, scalePoint is x * size. 
-                // Normalized coords are -0.5 to 0.5. So scaled is -size/2 to size/2.
-                // We need to translate them when drawing usually.
-                // Let's store particles in relative coordinates (centered at 0,0) for simplicity.
-                
-                x = nx * this.size;
-                y = ny * this.size;
-                angle = Math.atan2(y, x);
+            // Randomize start position slightly to create a "source" area rather than a single pixel point
+            const spread = this.lineWidth * 0.5;
+            const x = startX + (Math.random() - 0.5) * spread;
+            const y = startY + (Math.random() - 0.5) * spread;
 
-            } else {
-                // Standard Circle
-                angle = Math.random() * Math.PI * 2;
-                x = Math.cos(angle) * this.radius;
-                y = Math.sin(angle) * this.radius;
-            }
-
-            // Velocity: Explosive outward movement with lava-like flow
+            // Velocity: Explosive outward movement from the cursor
+            // Add some angle spread to the velocity for a "spray" effect
+            const sprayAngle = velocityAngle + (Math.random() - 0.5) * 1.0; 
             const speed = (this.size * 0.3 + Math.random() * this.size * 0.4) * (0.2 + pulseAmount * 1.5); 
-            const vx = Math.cos(angle) * speed;
-            const vy = Math.sin(angle) * speed;
+            
+            const vx = Math.cos(sprayAngle) * speed;
+            const vy = Math.sin(sprayAngle) * speed;
+
+            // Vary color slightly for vibrancy
+            let particleColor = color;
+            if (Math.random() > 0.5) {
+                // Shift hue slightly
+                const c = hsl(color);
+                c.h += (Math.random() - 0.5) * 60; // +/- 30 degrees hue shift
+                c.l += (Math.random() - 0.5) * 0.2; // slight lightness variation
+                particleColor = c.toString();
+            }
 
             this.particles.push({
                 x, y, vx, vy,
                 life: 1.0,
-                decay: 0.5 + Math.random() * 0.8, // Slower decay for longer trails
+                decay: 0.5 + Math.random() * 0.8,
                 size: (this.lineWidth * 0.6) * (0.5 + Math.random()),
-                color: color.toString()
+                color: particleColor
             });
         }
     }
@@ -146,10 +143,10 @@ export class GameRenderer {
         this.ctx.restore();
     }
 
-    drawVisualizer(pulseAmount, currentColorHsl) {
-        // Spawn particles based on pulse
+    drawVisualizer(pulseAmount, currentColorHsl, currentAngle) {
+        // Spawn particles based on pulse, passing angle
         if (pulseAmount > 0.05) {
-            this.spawnParticles(pulseAmount, currentColorHsl);
+            this.spawnParticles(pulseAmount, currentColorHsl, currentAngle);
         }
 
         // Draw the particles
@@ -160,11 +157,13 @@ export class GameRenderer {
         // Use additive blending for a glowing effect
         this.ctx.save();
         this.ctx.globalCompositeOperation = 'lighter';
-
-        const pulseColor = currentColorHsl.copy();
         
+        // Dynamic color for the pulse based on angle
+        const vibrantColor = currentColorHsl.copy();
+        // Shift hue based on rotation for vibrancy
+        vibrantColor.h = (vibrantColor.h + (currentAngle * 180 / Math.PI) / 4) % 360; 
+
         if (this.customPoints) {
-            // Enhanced Custom Visualizer: Glow + Particles (handled above)
             const points = this.customPoints;
             const len = points.length;
             
@@ -183,44 +182,54 @@ export class GameRenderer {
             this.ctx.closePath();
 
             // Layer: Wide atmospheric pulse
-            pulseColor.opacity = pulseAmount * 0.3;
-            this.ctx.strokeStyle = pulseColor.toString();
-            this.ctx.lineWidth = this.lineWidth + (pulseAmount * 50);
+            vibrantColor.opacity = pulseAmount * 0.4;
+            this.ctx.strokeStyle = vibrantColor.toString();
+            this.ctx.lineWidth = this.lineWidth + (pulseAmount * 60);
             this.ctx.stroke();
 
         } else {
             const centerX = this.size / 2;
             const centerY = this.size / 2;
             
-            // Standard Mode: Radial Pulse Waves
-            // Outer Glow
-            const outerRadiusMax = this.radius * (1 + pulseAmount * 0.6);
-            const outerGradient = this.ctx.createRadialGradient(centerX, centerY, this.radius, centerX, centerY, outerRadiusMax);
+            // Standard Mode: Vibrant Conic/Radial mix
             
-            pulseColor.opacity = pulseAmount * 0.6;
-            outerGradient.addColorStop(0, pulseColor.toString());
+            // Create a gradient that rotates with the indicator
+            try {
+                // Conic Gradient for rotational vibrancy
+                const conicGradient = this.ctx.createConicGradient(currentAngle - Math.PI/2, centerX, centerY);
+                
+                const c1 = vibrantColor.copy(); c1.opacity = pulseAmount * 0.3;
+                const c2 = vibrantColor.copy(); c2.h = (c2.h + 60) % 360; c2.opacity = pulseAmount * 0.5;
+                const c3 = vibrantColor.copy(); c3.h = (c3.h - 60) % 360; c3.opacity = 0;
+                
+                // Build a "spotlight" gradient
+                conicGradient.addColorStop(0, c1.toString());
+                conicGradient.addColorStop(0.1, c2.toString());
+                conicGradient.addColorStop(0.5, c3.toString());
+                conicGradient.addColorStop(0.9, c3.toString());
+                conicGradient.addColorStop(1, c1.toString());
+
+                this.ctx.fillStyle = conicGradient;
+                this.ctx.beginPath();
+                this.ctx.arc(centerX, centerY, this.radius * 2, 0, Math.PI * 2);
+                this.ctx.fill();
+
+            } catch (e) {
+                // Fallback for older browsers
+            }
+
+            // Central radial burst that matches color
+            const outerRadiusMax = this.radius * (1 + pulseAmount * 0.8);
+            const outerGradient = this.ctx.createRadialGradient(centerX, centerY, this.radius * 0.5, centerX, centerY, outerRadiusMax);
             
-            pulseColor.opacity = 0;
-            outerGradient.addColorStop(1, pulseColor.toString());
+            vibrantColor.opacity = pulseAmount * 0.5;
+            outerGradient.addColorStop(0, vibrantColor.toString());
+            vibrantColor.opacity = 0;
+            outerGradient.addColorStop(1, vibrantColor.toString());
 
             this.ctx.fillStyle = outerGradient;
             this.ctx.beginPath();
             this.ctx.arc(centerX, centerY, outerRadiusMax, 0, Math.PI*2);
-            this.ctx.fill();
-
-            // Inner Glow
-            const innerRadiusMin = Math.max(0, this.radius * (1 - pulseAmount * 0.5));
-            const innerGradient = this.ctx.createRadialGradient(centerX, centerY, innerRadiusMin, centerX, centerY, this.radius);
-            
-            pulseColor.opacity = 0;
-            innerGradient.addColorStop(0, pulseColor.toString());
-            
-            pulseColor.opacity = pulseAmount * 0.5;
-            innerGradient.addColorStop(1, pulseColor.toString());
-
-            this.ctx.fillStyle = innerGradient;
-            this.ctx.beginPath();
-            this.ctx.arc(centerX, centerY, this.radius, 0, Math.PI*2);
             this.ctx.fill();
         }
 
@@ -259,7 +268,7 @@ export class GameRenderer {
         this.smoothedPulse += (targetPulse - this.smoothedPulse) * 0.3;
         
         // Draw Visualizer
-        this.drawVisualizer(this.smoothedPulse, currentColorHsl);
+        this.drawVisualizer(this.smoothedPulse, currentColorHsl, angle);
 
         // Store pulse for replay
         if(replayFrame) {
@@ -279,6 +288,15 @@ export class GameRenderer {
 
         // Return if we are still showing the fail indicator for logic to know
         return !!failTap && ((performance.now() - failTap.timestamp) / 1000) < 3;
+    }
+
+    getIndex(ang) {
+        if (!this.customPoints) return 0;
+        const len = this.customPoints.length;
+        const norm = ((ang % (Math.PI*2)) + (Math.PI*2)) % (Math.PI*2);
+        const progress = norm / (Math.PI*2);
+        const idx = Math.floor(progress * (len - 1));
+        return Math.max(0, Math.min(len - 1, idx));
     }
 
     drawStandardPath(state) {
@@ -338,21 +356,14 @@ export class GameRenderer {
         this.ctx.lineCap = 'round';
         this.ctx.stroke();
 
-        // Helper to get index from angle (0..2PI -> 0..len)
-        const getIndex = (ang) => {
-            const norm = ((ang % (Math.PI*2)) + (Math.PI*2)) % (Math.PI*2);
-            const progress = norm / (Math.PI*2);
-            return Math.floor(progress * (len - 1));
-        };
-
         // Draw Target Zone
         // Target is an arc in domain 0..2PI. We draw the segment of points corresponding to it.
         if (targetSize > 0) {
             this.ctx.beginPath();
             // We need to handle wrapping manually since it's a list of points
-            const startIdx = getIndex(targetStartAngle);
+            const startIdx = this.getIndex(targetStartAngle);
             const endAngle = targetStartAngle + targetSize;
-            const endIdx = getIndex(endAngle);
+            const endIdx = this.getIndex(endAngle);
             
             const startP = this.scalePoint(points[startIdx]);
             this.ctx.moveTo(startP.x, startP.y);
@@ -365,7 +376,7 @@ export class GameRenderer {
                     this.ctx.lineTo(p.x, p.y);
                 }
                 // Draw from start
-                const realEndIdx = getIndex(endAngle % (Math.PI * 2));
+                const realEndIdx = this.getIndex(endAngle % (Math.PI * 2));
                 this.ctx.moveTo(this.scalePoint(points[0]).x, this.scalePoint(points[0]).y); // Gap fix
                  for(let i = 0; i <= realEndIdx; i++) {
                     const p = this.scalePoint(points[i]);
@@ -391,7 +402,7 @@ export class GameRenderer {
              const age = (performance.now() - failTap.timestamp) / 1000;
              if (age < 3) {
                  const opacity = Math.max(0, 1 - (age / 3));
-                 const idx = getIndex(failTap.angle);
+                 const idx = this.getIndex(failTap.angle);
                  const p = this.scalePoint(points[idx]);
                  
                  this.ctx.save();
@@ -415,7 +426,7 @@ export class GameRenderer {
         }
 
         // Draw Cursor
-        const cursorIdx = getIndex(angle);
+        const cursorIdx = this.getIndex(angle);
         const cursorP = this.scalePoint(points[cursorIdx]);
         
         this.ctx.beginPath();
