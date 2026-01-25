@@ -10,7 +10,9 @@ export class GameRenderer {
         this.devicePixelRatio = window.devicePixelRatio || 1;
         
         // Dimensions calculated on resize
-        this.size = 0;
+        this.gameSize = 0; // The logical size of the game area
+        this.centerX = 0;
+        this.centerY = 0;
         this.radius = 0;
         this.lineWidth = 0;
         this.currentDifficulty = 'easy';
@@ -24,28 +26,26 @@ export class GameRenderer {
 
     resize(difficulty) {
         this.currentDifficulty = difficulty;
-        const parent = this.canvas.parentElement;
-        if (!parent) return; // Guard if removed from DOM
         
-        const parentWidth = parent.offsetWidth;
-        const parentHeight = parent.offsetHeight;
-        const minDimension = Math.min(parentWidth, parentHeight);
+        // Use full screen canvas to avoid clipping visualizer effects
+        const width = window.innerWidth;
+        const height = window.innerHeight;
         
-        const canvasSize = minDimension * 0.9;
+        this.canvas.width = width * this.devicePixelRatio;
+        this.canvas.height = height * this.devicePixelRatio;
         
-        this.canvas.style.width = `${canvasSize}px`;
-        this.canvas.style.height = `${canvasSize}px`;
-
-        this.size = canvasSize * this.devicePixelRatio;
-        this.canvas.width = this.size;
-        this.canvas.height = this.size;
+        this.centerX = this.canvas.width / 2;
+        this.centerY = this.canvas.height / 2;
         
-        this.radius = this.size * 0.35; // Reduced to prevent visual clipping
+        const minDimension = Math.min(width, height);
+        this.gameSize = minDimension * 0.9 * this.devicePixelRatio;
+        
+        this.radius = this.gameSize * 0.35; 
         const conf = difficulties[this.currentDifficulty] || difficulties['easy'];
-        this.lineWidth = this.size * conf.trackWidthFactor;
+        this.lineWidth = this.gameSize * conf.trackWidthFactor;
         
         return {
-            size: this.size,
+            size: this.gameSize,
             radius: this.radius,
             lineWidth: this.lineWidth
         };
@@ -57,6 +57,7 @@ export class GameRenderer {
         // Use additive blending for a glowing effect
         this.ctx.save();
         this.ctx.globalCompositeOperation = 'lighter';
+        this.ctx.translate(this.centerX, this.centerY); // Translate to center of screen
 
         const pulseColor = currentColorHsl.copy();
         
@@ -64,7 +65,6 @@ export class GameRenderer {
             const points = this.customPoints;
             const len = points.length;
             
-            this.ctx.translate(this.size / 2, this.size / 2);
             this.ctx.lineJoin = 'round';
             this.ctx.lineCap = 'round';
 
@@ -83,31 +83,28 @@ export class GameRenderer {
             // Layer 1: Very wide, very faint atmospheric glow
             pulseColor.opacity = pulseAmount * 0.2;
             this.ctx.strokeStyle = pulseColor.toString();
-            this.ctx.lineWidth = baseWidth + (pulseAmount * this.size * 0.2);
+            this.ctx.lineWidth = baseWidth + (pulseAmount * this.gameSize * 0.2);
             this.ctx.stroke();
 
             // Layer 2: Medium wide glow
             pulseColor.opacity = pulseAmount * 0.3;
             this.ctx.strokeStyle = pulseColor.toString();
-            this.ctx.lineWidth = baseWidth + (pulseAmount * this.size * 0.1);
+            this.ctx.lineWidth = baseWidth + (pulseAmount * this.gameSize * 0.1);
             this.ctx.stroke();
 
             // Layer 3: Core intense glow
             pulseColor.opacity = pulseAmount * 0.5;
             this.ctx.strokeStyle = pulseColor.toString();
-            this.ctx.lineWidth = baseWidth + (pulseAmount * this.size * 0.03);
+            this.ctx.lineWidth = baseWidth + (pulseAmount * this.gameSize * 0.03);
             this.ctx.stroke();
 
         } else {
-            const centerX = this.size / 2;
-            const centerY = this.size / 2;
-            
             // Standard Mode: Radial Pulse Waves
             // We draw 2 main gradient pulses: one expanding out, one internal
 
             // Outer Glow - smoother quadratic falloff
             const outerRadiusMax = this.radius * (1 + pulseAmount * 0.8);
-            const outerGradient = this.ctx.createRadialGradient(centerX, centerY, this.radius, centerX, centerY, outerRadiusMax);
+            const outerGradient = this.ctx.createRadialGradient(0, 0, this.radius, 0, 0, outerRadiusMax);
             
             pulseColor.opacity = pulseAmount * 0.5;
             outerGradient.addColorStop(0, pulseColor.toString());
@@ -118,12 +115,12 @@ export class GameRenderer {
 
             this.ctx.fillStyle = outerGradient;
             this.ctx.beginPath();
-            this.ctx.arc(centerX, centerY, outerRadiusMax, 0, Math.PI*2);
+            this.ctx.arc(0, 0, outerRadiusMax, 0, Math.PI*2);
             this.ctx.fill();
 
             // Inner Glow - deeper gradient towards center transparent
             const innerRadiusMin = Math.max(0, this.radius * (1 - pulseAmount * 0.6));
-            const innerGradient = this.ctx.createRadialGradient(centerX, centerY, innerRadiusMin, centerX, centerY, this.radius);
+            const innerGradient = this.ctx.createRadialGradient(0, 0, innerRadiusMin, 0, 0, this.radius);
             
             pulseColor.opacity = 0;
             innerGradient.addColorStop(0, pulseColor.toString());
@@ -134,13 +131,13 @@ export class GameRenderer {
 
             this.ctx.fillStyle = innerGradient;
             this.ctx.beginPath();
-            this.ctx.arc(centerX, centerY, this.radius, 0, Math.PI*2);
+            this.ctx.arc(0, 0, this.radius, 0, Math.PI*2);
             this.ctx.fill();
 
             // Core Bloom - Subtle ambient light, ensuring it fades to transparent at center
             // Using a large radial gradient that covers the whole area but fades out properly
             const bloomRadius = this.radius * 1.5;
-            const bloomGradient = this.ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, bloomRadius);
+            const bloomGradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, bloomRadius);
             
             pulseColor.opacity = 0;
             bloomGradient.addColorStop(0, pulseColor.toString()); // Transparent center
@@ -150,9 +147,8 @@ export class GameRenderer {
             bloomGradient.addColorStop(1, pulseColor.toString());
             
             this.ctx.fillStyle = bloomGradient;
-            // Draw circle instead of rect to avoid any corner artifacts
             this.ctx.beginPath();
-            this.ctx.arc(centerX, centerY, bloomRadius, 0, Math.PI*2);
+            this.ctx.arc(0, 0, bloomRadius, 0, Math.PI*2);
             this.ctx.fill();
         }
 
@@ -160,7 +156,7 @@ export class GameRenderer {
     }
 
     draw(state) {
-        this.ctx.clearRect(0, 0, this.size, this.size);
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         const { 
             currentColorHsl, 
@@ -187,7 +183,14 @@ export class GameRenderer {
         // Smooth the pulse
         this.smoothedPulse += (targetPulse - this.smoothedPulse) * 0.3;
         
-        // Draw Visualizer
+        // Draw Background Plate (Shadow/Glow)
+        // This replaces the CSS box-shadow and ensures contrast against stars
+        this.ctx.save();
+        this.ctx.translate(this.centerX, this.centerY);
+        
+        // Draw Visualizer (it handles its own translation now for flexibility in gradients, wait, actually I moved translate into drawVisualizer for safety)
+        this.ctx.restore(); // Ensure we are clean before visualizer called
+        
         this.drawVisualizer(this.smoothedPulse, currentColorHsl);
 
         // Store pulse for replay
@@ -196,7 +199,21 @@ export class GameRenderer {
         }
 
         this.ctx.save();
-        this.ctx.translate(this.size / 2, this.size / 2);
+        this.ctx.translate(this.centerX, this.centerY);
+
+        // Draw Dark Background for contrast (was previously box-shadow)
+        if (!this.customPoints) {
+            const shadowRadius = this.radius * 1.05; // Slightly larger than track
+            const bgGradient = this.ctx.createRadialGradient(0, 0, this.radius * 0.5, 0, 0, shadowRadius + 30);
+            bgGradient.addColorStop(0, 'rgba(0,0,0,0.4)');
+            bgGradient.addColorStop(0.8, 'rgba(0,0,0,0.6)');
+            bgGradient.addColorStop(1, 'rgba(0,0,0,0)');
+            
+            this.ctx.fillStyle = bgGradient;
+            this.ctx.beginPath();
+            this.ctx.arc(0, 0, shadowRadius + 30, 0, Math.PI*2);
+            this.ctx.fill();
+        }
 
         if (this.customPoints) {
             this.drawCustomPath(state);
@@ -337,7 +354,7 @@ export class GameRenderer {
                  this.ctx.moveTo(xSize, -xSize);
                  this.ctx.lineTo(-xSize, xSize);
                  this.ctx.strokeStyle = failColor.toString();
-                 this.ctx.lineWidth = Math.max(2, this.size * 0.005);
+                 this.ctx.lineWidth = Math.max(2, this.gameSize * 0.005);
                  this.ctx.stroke();
                  this.ctx.restore();
              }
@@ -357,8 +374,8 @@ export class GameRenderer {
         // Points are normalized around 0,0. Scale by size/2 roughly
         // Scale down slightly to allow room for glow effects (0.85 factor)
         return {
-            x: p.x * (this.size * 0.85),
-            y: p.y * (this.size * 0.85)
+            x: p.x * (this.gameSize * 0.85),
+            y: p.y * (this.gameSize * 0.85)
         };
     }
 
@@ -391,7 +408,7 @@ export class GameRenderer {
             this.ctx.moveTo(xSize, -xSize);
             this.ctx.lineTo(-xSize, xSize);
             this.ctx.strokeStyle = failColorStr;
-            this.ctx.lineWidth = Math.max(2, this.size * 0.005);
+            this.ctx.lineWidth = Math.max(2, this.gameSize * 0.005);
             this.ctx.stroke();
 
             this.ctx.restore();

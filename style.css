@@ -45,18 +45,19 @@ html, body {
 }
 
 #game-canvas {
-    max-width: 90vw;
-    max-height: 90vh;
-    aspect-ratio: 1 / 1;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     background-color: transparent;
-    border-radius: 12px;
     touch-action: none; /* Prevents double tap zoom */
-    transition: border-radius 0.3s ease;
+    pointer-events: none; /* Allow taps to pass through if necessary, but input controller handles global */
+    z-index: 0;
 }
 
 #game-canvas.circle-mode {
-    border-radius: 50%;
-    box-shadow: 0 0 30px rgba(0,0,0,0.6);
+    /* Visuals now handled in canvas rendering to prevent clipping */
 }
 
 /* removed #ui-container ... #music-toggle-btn: moved to ui.css */
