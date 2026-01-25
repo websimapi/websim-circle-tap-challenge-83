@@ -24,6 +24,18 @@
             <h2>Draw Your Track</h2>
             <p>Draw a continuous loop. Start and end must meet.</p>
         </div>
+        <div class="creator-ui-settings">
+            <div class="setting-item">
+                <label>Lives:</label>
+                <select id="creator-lives">
+                    <option value="1">1</option>
+                    <option value="3" selected>3</option>
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="999">∞</option>
+                </select>
+            </div>
+        </div>
         <div class="creator-ui-bottom">
             <button id="creator-cancel-btn" class="menu-btn">Cancel</button>
             <button id="creator-undo-btn" class="menu-btn">Undo</button>
@@ -88,9 +100,13 @@
             <!-- Standard Difficulty Indicator -->
             <div id="difficulty-indicator" data-difficulty="easy" title="Difficulty: Easy">
                 <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                <div class="custom-icon hidden">✨</div>
             </div>
 
-            <div id="score-display" class="hidden">Score: <span id="score">0</span></div>
+            <div id="score-display" class="hidden">
+                <div>Score: <span id="score">0</span></div>
+                <div id="lives-display" class="hidden">❤️ <span id="lives-count">3</span></div>
+            </div>
             
             <!-- VS Status Display -->
             <div id="vs-status-display" class="hidden">Waiting for opponent...</div>

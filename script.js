@@ -99,6 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Set up game callbacks
     game.onScoreUpdate = (score) => ui.updateScore(score);
+    game.onLivesUpdate = (lives) => ui.updateLives(lives);
     game.onLevelUp = (level, isInitial) => {
         ui.updateLevel(level, isInitial);
         // Sync level for drain logic handled in game loop
@@ -287,9 +288,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function startCustomGame(map) {
         customBrowserView.classList.add('hidden');
         game.setMode('custom', map);
-        game.start('easy'); // Use standard easy speed for now
+        game.start('easy'); 
         ui.showGameScreen();
-        // Maybe update title to show map name?
+        ui.updateDifficulty('custom');
+        ui.updateLives(map.lives || 3);
     }
 
     window.addEventListener('refreshCustomMaps', () => {
@@ -336,6 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Exit custom mode if active
         if (game.mode === 'custom') {
             game.setMode('standard');
+            ui.updateLives(null); // Hide lives
         }
         
         ui.clearTimeouts();

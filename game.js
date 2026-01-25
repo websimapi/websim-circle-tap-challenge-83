@@ -60,10 +60,12 @@ export class Game {
         this.onGameOver = null;
         this.onScoreUpdate = null;
         this.onLevelUp = null;
+        this.onLivesUpdate = null;
         
         // VS Mode props
         this.mode = 'standard'; // 'standard', 'zen', 'vs', 'custom'
         this.health = 300;
+        this.lives = 1;
         this.maxHealth = 300;
         this.opponentLevel = 1;
         this.vsManagerUpdate = null; // Callback
@@ -88,6 +90,7 @@ export class Game {
         } else if (mode === 'custom' && extraData) {
             this.customMapData = extraData;
             this.renderer.setCustomMap(extraData.points);
+            this.lives = extraData.lives || 3;
         } else {
             this.renderer.setCustomMap(null); // Reset
             this.customMapData = null;
@@ -153,6 +156,16 @@ export class Game {
         if (this.mode === 'vs') {
             this.health = 300;
             this.opponentLevel = 1;
+        }
+        
+        if (this.mode === 'custom') {
+            // Apply lives from map data if restarting
+            if (this.customMapData) {
+                this.lives = this.customMapData.lives || 3;
+            } else {
+                this.lives = 3; // Default fallback
+            }
+            if (this.onLivesUpdate) this.onLivesUpdate(this.lives);
         }
 
         this.generateNewTarget();
@@ -331,6 +344,22 @@ export class Game {
 
             if (this.mode === 'standard') {
                 this.gameOver();
+            } else if (this.mode === 'custom') {
+                 if (this.lives !== 999) {
+                    this.lives--;
+                    if (this.onLivesUpdate) this.onLivesUpdate(this.lives);
+                    
+                    if (this.lives <= 0) {
+                        this.gameOver();
+                    } else {
+                        playFail();
+                        this.generateNewTarget();
+                    }
+                } else {
+                    // Infinite lives
+                    playFail();
+                    this.generateNewTarget();
+                }
             } else if (this.mode === 'zen') {
                 playFail();
                 // Zen penalty: reduced score, drop level

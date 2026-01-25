@@ -144,8 +144,11 @@ export class CustomLevelCreator {
             y: (p.y - centerY) / (size * 1.2)
         }));
 
+        const livesInput = document.getElementById('creator-lives');
+        const lives = parseInt(livesInput.value, 10);
+
         try {
-            await createCustomMap({ points: normalizedPoints });
+            await createCustomMap({ points: normalizedPoints, lives: lives });
             alert("Map saved!");
             this.close();
             // trigger refresh of browser?

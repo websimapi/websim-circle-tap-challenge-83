@@ -14,6 +14,7 @@ export async function createCustomMap(mapData) {
     const newMap = {
         name: mapData.name || `Map ${new Date().toLocaleDateString()}`,
         points: mapData.points, // Array of {x, y} normalized
+        lives: mapData.lives || 1,
         creator_id: user.id,
         creator_username: user.username,
         plays: 0,

@@ -32,6 +32,10 @@
 #difficulty-indicator[data-difficulty="hard"] .bar:nth-child(2),
 #difficulty-indicator[data-difficulty="hard"] .bar:nth-child(3) { background-color: var(--fail-color); }
 
+#difficulty-indicator[data-difficulty="custom"] .bar { display: none; }
+#difficulty-indicator[data-difficulty="custom"] .custom-icon { display: block !important; font-size: 1.2rem; }
+#difficulty-indicator[data-difficulty="custom"] { background: rgba(106, 17, 203, 0.4); border: 1px solid rgba(255,255,255,0.2); }
+
 /* Score & Level */
 #score-display {
     position: absolute;
@@ -41,6 +45,18 @@
     font-weight: bold;
     color: var(--accent-color);
     text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+#lives-display {
+    font-size: calc(1.2rem * var(--ui-scale));
+    color: #fff;
+    margin-top: 5px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
 }
 
 #level-display {

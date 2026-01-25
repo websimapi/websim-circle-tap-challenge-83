@@ -146,6 +146,19 @@ export class UIController {
         }
     }
 
+    updateLives(lives) {
+        const livesDisplay = document.getElementById('lives-display');
+        const livesCount = document.getElementById('lives-count');
+        if (livesDisplay && livesCount) {
+            if (lives === undefined || lives === null) {
+                livesDisplay.classList.add('hidden');
+            } else {
+                livesDisplay.classList.remove('hidden');
+                livesCount.textContent = lives === 999 ? '∞' : lives;
+            }
+        }
+    }
+
     updateOpponentScore(score) {
         const opponentScore = document.getElementById('opponent-score');
         if (opponentScore) {
@@ -245,6 +258,18 @@ export class UIController {
         if (indicator) {
             indicator.setAttribute('data-difficulty', difficulty);
             indicator.title = `Difficulty: ${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}`;
+            
+            // Handle Custom Icon toggle
+            const icon = indicator.querySelector('.custom-icon');
+            const bars = indicator.querySelectorAll('.bar');
+            
+            if (difficulty === 'custom') {
+                if(icon) icon.classList.remove('hidden');
+                bars.forEach(b => b.classList.add('hidden'));
+            } else {
+                if(icon) icon.classList.add('hidden');
+                bars.forEach(b => b.classList.remove('hidden'));
+            }
         }
 
         // Update buttons
