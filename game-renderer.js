@@ -33,15 +33,18 @@ export class GameRenderer {
         // Use full screen canvas to avoid clipping visualizer effects
         const width = window.innerWidth;
         const height = window.innerHeight;
+
+        // Cap pixel ratio to 2 to prevent massive canvases on high DPI mobile devices causing lag
+        const pixelRatio = Math.min(this.devicePixelRatio, 2);
         
-        this.canvas.width = width * this.devicePixelRatio;
-        this.canvas.height = height * this.devicePixelRatio;
+        this.canvas.width = width * pixelRatio;
+        this.canvas.height = height * pixelRatio;
         
         this.centerX = this.canvas.width / 2;
         this.centerY = this.canvas.height / 2;
         
         const minDimension = Math.min(width, height);
-        this.gameSize = minDimension * 0.9 * this.devicePixelRatio;
+        this.gameSize = minDimension * 0.9 * pixelRatio;
         
         this.radius = this.gameSize * 0.35; 
         const conf = difficulties[this.currentDifficulty] || difficulties['easy'];
@@ -98,25 +101,22 @@ export class GameRenderer {
             this.ctx.lineCap = 'round';
             const colorStr = currentColorHsl.toString();
             
-            this.ctx.shadowColor = colorStr;
             this.ctx.strokeStyle = colorStr;
+            this.ctx.shadowBlur = 0; // Disable expensive shadow blur
 
-            // Layer 1: Wide ambient glow
-            this.ctx.shadowBlur = this.lineWidth * (3 + pulseAmount * 5);
-            this.ctx.lineWidth = this.lineWidth * 0.5;
-            this.ctx.globalAlpha = 0.4 * pulseAmount;
+            // Layer 1: Wide ambient glow (simulated via transparency)
+            this.ctx.lineWidth = this.lineWidth * (3 + pulseAmount * 4);
+            this.ctx.globalAlpha = 0.15 * pulseAmount;
             this.ctx.stroke(this.customPath);
 
             // Layer 2: Focused bright glow
-            this.ctx.shadowBlur = this.lineWidth * (1 + pulseAmount * 2);
-            this.ctx.lineWidth = this.lineWidth * 0.8;
-            this.ctx.globalAlpha = 0.6 + (0.4 * pulseAmount);
+            this.ctx.lineWidth = this.lineWidth * (1.5 + pulseAmount * 2);
+            this.ctx.globalAlpha = 0.3 * pulseAmount;
             this.ctx.stroke(this.customPath);
 
             // Layer 3: Core definition
-            this.ctx.shadowBlur = 0;
-            this.ctx.lineWidth = this.lineWidth;
-            this.ctx.globalAlpha = 0.8;
+            this.ctx.lineWidth = this.lineWidth * (0.8 + pulseAmount * 0.5);
+            this.ctx.globalAlpha = 0.6 + (0.3 * pulseAmount);
             this.ctx.stroke(this.customPath);
 
             this.ctx.globalAlpha = 1;

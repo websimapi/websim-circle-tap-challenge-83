@@ -24,7 +24,7 @@ const StarfieldBackground = () => {
     renderer.setPixelRatio(1);
     renderer.setClearColor(1710638, 1);
     rendererRef.current = renderer;
-    const starCount = 8e3;
+    const starCount = 2500;
     const starVertices = [];
     const starVelocities = [];
     const starSizes = [];

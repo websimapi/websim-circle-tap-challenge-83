@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 let scene, camera, renderer, stars;
-const starCount = 8000;
+const starCount = 2500;
 
 function init() {
     const canvas = document.getElementById('background-canvas');
