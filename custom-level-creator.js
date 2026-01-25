@@ -117,6 +117,30 @@ export class CustomLevelCreator {
         this.render();
     }
 
+    loadForEditing(mapData) {
+        this.open();
+        
+        // De-normalize points back to canvas space roughly
+        // We don't know the exact original scale, but we can fit it to the current canvas
+        const minDim = Math.min(this.canvas.width, this.canvas.height);
+        const scale = minDim * 0.8; // Use 80% of canvas
+        const cx = this.canvas.width / 2;
+        const cy = this.canvas.height / 2;
+
+        this.points = mapData.points.map(p => ({
+            x: p.x * (scale * 1.2) + cx, // Undo the 1.2 padding division roughly
+            y: p.y * (scale * 1.2) + cy
+        }));
+        
+        // Update lives
+        const livesInput = document.getElementById('creator-lives');
+        if (livesInput) livesInput.value = mapData.lives || 3;
+
+        this.isValid = true; // Assumed valid since it was saved
+        this.isDrawing = false;
+        this.render();
+    }
+
     async finish() {
         if (!this.isValid) return;
 
@@ -149,7 +173,7 @@ export class CustomLevelCreator {
 
         try {
             await createCustomMap({ points: normalizedPoints, lives: lives });
-            alert("Map saved!");
+            alert("Map saved as a new entry!");
             this.close();
             // trigger refresh of browser?
             const event = new CustomEvent('refreshCustomMaps');

@@ -7,7 +7,7 @@ import { LeaderboardController } from './leaderboard-controller.js';
 import { InputController } from './input-controller.js';
 import { VSManager } from './vs-manager.js';
 import { CustomLevelCreator } from './custom-level-creator.js';
-import { getCustomMaps, deleteCustomMap, playCustomMap } from './custom-maps-api.js';
+import { getCustomMaps, deleteCustomMap, saveCustomMapScore, getCustomMapLeaderboard } from './custom-maps-api.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('game-canvas');
@@ -255,7 +255,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div class="map-actions">
                     <button class="play-map-btn" data-id="${map.id}">Play</button>
-                    ${isMine ? `<button class="delete-map-btn" data-id="${map.id}" title="Delete">🗑️</button>` : ''}
+                    <button class="leaderboard-map-btn icon-only" data-id="${map.id}" title="Leaderboard">
+                         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h3v7H3v-7zm5-2h3v9H8v-9zm5-6h3v15h-3V5z"></path></svg>
+                    </button>
+                    ${isMine ? `
+                        <button class="edit-map-btn icon-only" data-id="${map.id}" title="Edit/Remix">✏️</button>
+                        <button class="delete-map-btn icon-only" data-id="${map.id}" title="Delete">🗑️</button>
+                    ` : ''}
                 </div>
             </div>
         `).join('');
@@ -269,17 +275,40 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
+        customMapsList.querySelectorAll('.leaderboard-map-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const btnEl = e.target.closest('.leaderboard-map-btn');
+                const mapId = btnEl.dataset.id;
+                const map = maps.find(m => m.id === mapId);
+                
+                customBrowserView.classList.add('hidden');
+                
+                // Load Custom Leaderboard
+                const scores = await getCustomMapLeaderboard(mapId);
+                leaderboardOrigin = 'custom-browser';
+                leaderboardController.show('custom_map'); // Preps UI
+                leaderboardController.loadLeaderboard('custom_map', scores, `Leaderboard: ${map.name}`);
+            });
+        });
+
         if (isMine) {
             customMapsList.querySelectorAll('.delete-map-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
-                    const mapId = e.target.dataset.id; // Corrected from closest
-                    // e.target might be inner content if icon
                     const btnEl = e.target.closest('.delete-map-btn');
                     const id = btnEl.dataset.id;
-                    if(confirm('Delete this map?')) {
+                    if(confirm('Delete this map? This cannot be undone.')) {
                         await deleteCustomMap(id);
                         loadCustomMaps('mine');
                     }
+                });
+            });
+
+            customMapsList.querySelectorAll('.edit-map-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const btnEl = e.target.closest('.edit-map-btn');
+                    const id = btnEl.dataset.id;
+                    const map = maps.find(m => m.id === id);
+                    customCreator.loadForEditing(map);
                 });
             });
         }
@@ -380,8 +409,38 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.submitScoreBtn.addEventListener('click', async () => {
         ui.setSubmitButtonState('disabled', 'Submitting...');
         
+        const data = game.lastGameData;
+
+        // Handle Custom Map Score Submission
+        if (data.mode === 'custom' && game.customMapData) {
+            try {
+                // Upload replay for custom map first
+                let replayUrl = null;
+                if (data.replayData) {
+                     const replayJson = JSON.stringify(data.replayData);
+                     const replayBlob = new Blob([replayJson], { type: 'application/json' });
+                     const replayFile = new File([replayBlob], 'replay.json');
+                     replayUrl = await window.websim.upload(replayFile);
+                }
+
+                await saveCustomMapScore(game.customMapData.id, {
+                    score: data.score,
+                    level: data.level,
+                    timestamp: data.timestamp,
+                    replayDataUrl: replayUrl
+                });
+                ui.setSubmitButtonState('disabled', 'Submitted!');
+            } catch (e) {
+                console.error(e);
+                ui.setSubmitButtonState('disabled', 'Error!');
+                setTimeout(() => { ui.setSubmitButtonState('enabled', 'Submit Score'); }, 2000);
+            }
+            return;
+        }
+
+        // Standard Submission
         await submitScore(
-            game.lastGameData,
+            data,
             () => ui.setSubmitButtonState('disabled', 'Submitted!'),
             () => {
                 ui.setSubmitButtonState('disabled', 'Error!');
@@ -469,6 +528,9 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.closeLeaderboardBtn.addEventListener('click', () => {
         ui.hideLeaderboardView(leaderboardOrigin);
         leaderboardController.close();
+        if (leaderboardOrigin === 'custom-browser') {
+            customBrowserView.classList.remove('hidden');
+        }
     });
 
     // Responsive UI Scaling

@@ -1,6 +1,6 @@
 export const room = new WebsimSocket();
 const OLD_COLLECTION_NAME = 'leaderboard_scores_v3';
-const NEW_COLLECTION_NAME = 'leaderboard_profiles_v2';
+export const NEW_COLLECTION_NAME = 'leaderboard_profiles_v2';
 const LOCAL_STORAGE_KEY = 'circleTapPendingScores';
 
 class LocalStorageSync {
@@ -342,4 +342,30 @@ export async function fetchUserProfile(username) {
     return profiles.length > 0 
         ? profiles.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0] 
         : null;
+}
+
+export async function getMyProfile() {
+    const user = await window.websim.getCurrentUser();
+    const profile = await fetchUserProfile(user.username);
+    return { user, profile };
+}
+
+export async function createOrUpdateMyProfile(data) {
+    const { user, profile } = await getMyProfile();
+    const collection = room.collection(NEW_COLLECTION_NAME);
+    
+    if (profile) {
+        return await collection.update(profile.id, data);
+    } else {
+        return await collection.create({
+            username: user.username,
+            easy: [],
+            medium: [],
+            hard: [],
+            vs: [],
+            created_maps: [],
+            custom_map_scores: [],
+            ...data
+        });
+    }
 }

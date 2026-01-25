@@ -128,7 +128,7 @@ export class LeaderboardController {
         // console.log(`UI Scale: ${uiScale}, Avail: ${availableListHeight}, ItemH: ${itemBaseHeight}, Count: ${calculatedItems}`);
     }
 
-    async loadLeaderboard(difficulty) {
+    async loadLeaderboard(difficulty, customData = null, customTitle = null) {
         this.state.currentDifficulty = difficulty;
         this.isMyScoresActive = false;
         this.state.currentPage = 1;
@@ -136,21 +136,65 @@ export class LeaderboardController {
         this.elements.leaderboardList.innerHTML = '<p>Loading scores...</p>';
         this.ui.hidePagination();
         this.data.rankedPlayers = [];
-
-        this._updateFilterButtons(difficulty);
+        
+        // Handle UI for custom vs standard
+        if (difficulty === 'custom_map') {
+            this.elements.leaderboardFilterBtns.forEach(btn => btn.classList.remove('active'));
+            // Maybe add a title change in UI?
+            if(customTitle && this.elements.leaderboardView.querySelector('h2')) {
+                this.elements.leaderboardView.querySelector('h2').textContent = customTitle;
+            }
+        } else {
+             this._updateFilterButtons(difficulty);
+             if(this.elements.leaderboardView.querySelector('h2')) {
+                this.elements.leaderboardView.querySelector('h2').textContent = "Leaderboard";
+            }
+        }
 
         try {
-            if (this.data.cache[difficulty]) {
-                this.data.rankedPlayers = this.data.cache[difficulty];
+            if (customData) {
+                // Map custom data to expected format for rendering
+                // customData is expected to be array of { username, score, level, replayDataUrl, ... }
+                // We need to shape it like rankedPlayers: { username, highestScore, bestLevel, gamesPlayed, bestGameData, allScores }
+                
+                // Group by user if not already (though getCustomMapLeaderboard returns flat scores)
+                // Let's assume flat scores for now and just show them
+                
+                // Actually, renderLeaderboardList expects 'rankedPlayers' which are user aggregates.
+                // Let's aggregate the customData by username
+                const players = {};
+                customData.forEach(score => {
+                    if (!players[score.username]) {
+                        players[score.username] = { username: score.username, allScores: [] };
+                    }
+                    players[score.username].allScores.push(score);
+                });
+                
+                this.data.rankedPlayers = Object.values(players).map(p => {
+                    const best = p.allScores.reduce((b, c) => c.score > b.score ? c : b, p.allScores[0]);
+                    return {
+                        username: p.username,
+                        highestScore: best.score,
+                        bestLevel: best.level || 1,
+                        gamesPlayed: p.allScores.length,
+                        bestGameData: best, // contains replay url etc
+                        allScores: p.allScores
+                    };
+                }).sort((a,b) => b.highestScore - a.highestScore);
+                
             } else {
-                this.data.rankedPlayers = await fetchLeaderboard(difficulty);
-                this.data.cache[difficulty] = this.data.rankedPlayers;
+                if (this.data.cache[difficulty]) {
+                    this.data.rankedPlayers = this.data.cache[difficulty];
+                } else {
+                    this.data.rankedPlayers = await fetchLeaderboard(difficulty);
+                    this.data.cache[difficulty] = this.data.rankedPlayers;
+                }
             }
             
             this.state.totalPages = Math.ceil(this.data.rankedPlayers.length / this.state.itemsPerPage);
 
             if (this.data.rankedPlayers.length === 0) {
-                this.elements.leaderboardList.innerHTML = `<p>No scores for ${difficulty} difficulty yet. Be the first!</p>`;
+                this.elements.leaderboardList.innerHTML = `<p>No scores recorded yet.</p>`;
                 this.ui.hidePagination();
             } else {
                 this._render();
@@ -158,7 +202,7 @@ export class LeaderboardController {
             }
         } catch (error) {
             console.error("Error fetching leaderboard:", error);
-            this.elements.leaderboardList.innerHTML = '<p>Could not load leaderboard. Please try again later.</p>';
+            this.elements.leaderboardList.innerHTML = '<p>Could not load leaderboard.</p>';
             this.ui.hidePagination();
         }
     }
