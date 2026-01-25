@@ -236,7 +236,7 @@ export class Game {
 
     // removed drawVisualizer() {} - logic moved to GameRenderer
 
-    draw(deltaTime) {
+    draw() {
         // Collect state to pass to renderer
         const replayFrame = this.replayFrames[this.replayFrames.length-1];
         
@@ -249,7 +249,7 @@ export class Game {
             replayFrame: replayFrame
         };
 
-        const isShowingFail = this.renderer.draw(renderState, deltaTime);
+        const isShowingFail = this.renderer.draw(renderState);
         
         // Sync failTap expiration if renderer says it's done
         if (this.failTap && !isShowingFail) {
@@ -311,7 +311,7 @@ export class Game {
             this.angle += idleSpeed * deltaTime;
         }
 
-        this.draw(deltaTime);
+        this.draw();
         this.animationFrameId = requestAnimationFrame((t) => this.gameLoop(t));
     }
 
