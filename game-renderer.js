@@ -97,26 +97,24 @@ export class GameRenderer {
             this.ctx.lineJoin = 'round';
             this.ctx.lineCap = 'round';
             const colorStr = currentColorHsl.toString();
+            
+            this.ctx.shadowColor = colorStr;
             this.ctx.strokeStyle = colorStr;
 
-            // Multi-pass glow simulation (gradient-like effect)
-            
-            // Pass 1: Wide Outer Bloom
-            this.ctx.lineWidth = this.lineWidth * (4 + pulseAmount * 4);
-            this.ctx.globalAlpha = 0.15 * pulseAmount;
+            // Layer 1: Wide ambient glow
+            this.ctx.shadowBlur = this.lineWidth * (3 + pulseAmount * 5);
+            this.ctx.lineWidth = this.lineWidth * 0.5;
+            this.ctx.globalAlpha = 0.4 * pulseAmount;
             this.ctx.stroke(this.customPath);
 
-            // Pass 2: Mid Glow
-            this.ctx.lineWidth = this.lineWidth * (2 + pulseAmount * 2);
-            this.ctx.globalAlpha = 0.3 * pulseAmount;
+            // Layer 2: Focused bright glow
+            this.ctx.shadowBlur = this.lineWidth * (1 + pulseAmount * 2);
+            this.ctx.lineWidth = this.lineWidth * 0.8;
+            this.ctx.globalAlpha = 0.6 + (0.4 * pulseAmount);
             this.ctx.stroke(this.customPath);
 
-            // Pass 3: Inner Glow
-            this.ctx.lineWidth = this.lineWidth * (1 + pulseAmount);
-            this.ctx.globalAlpha = 0.5 * pulseAmount + 0.1;
-            this.ctx.stroke(this.customPath);
-            
-            // Pass 4: Bright Core
+            // Layer 3: Core definition
+            this.ctx.shadowBlur = 0;
             this.ctx.lineWidth = this.lineWidth;
             this.ctx.globalAlpha = 0.8;
             this.ctx.stroke(this.customPath);
