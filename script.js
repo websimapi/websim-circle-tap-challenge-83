@@ -269,6 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Bind events
         customMapsList.querySelectorAll('.play-map-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
+                handleFirstInteraction(); // Ensure audio context starts
                 const mapId = e.target.dataset.id;
                 const map = maps.find(m => m.id === mapId);
                 startCustomGame(map);

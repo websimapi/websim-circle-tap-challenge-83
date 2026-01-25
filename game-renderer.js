@@ -96,29 +96,32 @@ export class GameRenderer {
         if (this.customPoints && this.customPath) {
             this.ctx.lineJoin = 'round';
             this.ctx.lineCap = 'round';
-
             const colorStr = currentColorHsl.toString();
-            
-            this.ctx.shadowColor = colorStr;
             this.ctx.strokeStyle = colorStr;
 
-            // Pass 1: Wide, faint ambient glow (Boosted Alpha)
-            this.ctx.shadowBlur = this.lineWidth * 4 * (0.5 + pulseAmount);
+            // Multi-pass glow simulation (gradient-like effect)
+            
+            // Pass 1: Wide Outer Bloom
+            this.ctx.lineWidth = this.lineWidth * (4 + pulseAmount * 4);
+            this.ctx.globalAlpha = 0.15 * pulseAmount;
+            this.ctx.stroke(this.customPath);
+
+            // Pass 2: Mid Glow
+            this.ctx.lineWidth = this.lineWidth * (2 + pulseAmount * 2);
+            this.ctx.globalAlpha = 0.3 * pulseAmount;
+            this.ctx.stroke(this.customPath);
+
+            // Pass 3: Inner Glow
+            this.ctx.lineWidth = this.lineWidth * (1 + pulseAmount);
+            this.ctx.globalAlpha = 0.5 * pulseAmount + 0.1;
+            this.ctx.stroke(this.customPath);
+            
+            // Pass 4: Bright Core
             this.ctx.lineWidth = this.lineWidth;
-            this.ctx.globalAlpha = Math.min(1, 0.6 * pulseAmount + 0.1); 
+            this.ctx.globalAlpha = 0.8;
             this.ctx.stroke(this.customPath);
 
-            // Pass 2: Core intense line (Boosted Alpha)
-            this.ctx.shadowBlur = this.lineWidth * 0.8;
-            this.ctx.lineWidth = this.lineWidth * 0.6;
-            this.ctx.globalAlpha = Math.min(1, 1.0 * pulseAmount + 0.2);
-            this.ctx.stroke(this.customPath);
-
-            // Reset shadow
-            this.ctx.shadowBlur = 0;
-            this.ctx.shadowColor = 'transparent';
             this.ctx.globalAlpha = 1;
-
         } else {
             // Standard Mode: Radial Pulse Waves
             // We draw 2 main gradient pulses: one expanding out, one internal
