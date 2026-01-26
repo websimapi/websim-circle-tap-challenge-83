@@ -149,7 +149,7 @@ export function renderLeaderboardList(rankedPlayers, currentPage = 1, itemsPerPa
                     <button class="watch-replay-btn icon-only" data-index="${overallIndex}" title="Watch Best Replay">${watchIcon}</button>
                 </div>
             </div>
-        `
+        `;
     }).join('');
 }
 
@@ -199,7 +199,8 @@ export function renderDetailList(scores, currentPage = 1, itemsPerPage = 10, con
                 </button>` : ''
             }
         </div>
-    `}).join('');
+    `;
+    }).join('');
 }
 
 export function renderLeaderboardPagination(totalPages, currentPage, type = 'main') {
