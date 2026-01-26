@@ -172,7 +172,8 @@ const GameCanvas = ({ frameData, config }) => {
   const { trackWidthFactor } = difficulties[difficulty] || difficulties["easy"];
   const radius = 45;
   const lineWidth = radius * 2 * trackWidthFactor;
-  if (mode === "custom" && customMapData && customMapData.points) {
+  const isCustomMode = mode === "custom" && customMapData && Array.isArray(customMapData.points);
+  if (isCustomMode) {
     const scale = 100;
     const points = customMapData.points.map((p) => ({ x: p.x * scale, y: p.y * scale }));
     const len = points.length;
@@ -183,11 +184,23 @@ const GameCanvas = ({ frameData, config }) => {
       const endAngle = targetStartAngle + targetSize;
       if (endAngle > Math.PI * 2) {
         const realEndIdx = getIndex(endAngle % (Math.PI * 2), len);
-        targetPath += points.slice(startIdx).map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
-        targetPath += points.slice(1, realEndIdx + 1).map((p) => ` L ${p.x} ${p.y}`).join(" ");
+        const part1 = points.slice(startIdx);
+        if (part1.length > 0) {
+          targetPath += part1.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+        }
+        const part2 = points.slice(1, realEndIdx + 1);
+        if (part2.length > 0) {
+          targetPath += " L " + points[0].x + " " + points[0].y;
+          targetPath += " " + part2.map((p) => `L ${p.x} ${p.y}`).join(" ");
+        } else if (realEndIdx === 0) {
+          targetPath += " L " + points[0].x + " " + points[0].y;
+        }
       } else {
         const endIdx = getIndex(endAngle, len);
-        targetPath = points.slice(startIdx, endIdx + 1).map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+        const segment = points.slice(startIdx, endIdx + 1);
+        if (segment.length > 0) {
+          targetPath = segment.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+        }
       }
     }
     const cursorIdx = getIndex(angle, len);
@@ -195,34 +208,34 @@ const GameCanvas = ({ frameData, config }) => {
     return /* @__PURE__ */ jsxDEV("svg", { viewBox: "-75 -75 150 150", style: { width: "100%", height: "100%" }, children: [
       /* @__PURE__ */ jsxDEV(Visualizer, { pulseAmount, targetColor, radius, lineWidth, customPath: trackPath }, void 0, false, {
         fileName: "<stdin>",
-        lineNumber: 158,
+        lineNumber: 176,
         columnNumber: 18
       }),
       /* @__PURE__ */ jsxDEV("path", { d: trackPath, stroke: colors.secondary, strokeWidth: lineWidth, fill: "none", strokeLinecap: "round", strokeLinejoin: "round" }, void 0, false, {
         fileName: "<stdin>",
-        lineNumber: 161,
+        lineNumber: 179,
         columnNumber: 18
       }),
       targetPath && /* @__PURE__ */ jsxDEV("path", { d: targetPath, stroke: targetColor || colors.success, strokeWidth: lineWidth * 0.95, fill: "none", strokeLinecap: "round", strokeLinejoin: "round" }, void 0, false, {
         fileName: "<stdin>",
-        lineNumber: 165,
+        lineNumber: 183,
         columnNumber: 22
       }),
       /* @__PURE__ */ jsxDEV("circle", { cx: cursorP.x, cy: cursorP.y, r: lineWidth / 2, fill: colors.fail }, void 0, false, {
         fileName: "<stdin>",
-        lineNumber: 169,
+        lineNumber: 187,
         columnNumber: 18
       })
     ] }, void 0, true, {
       fileName: "<stdin>",
-      lineNumber: 157,
+      lineNumber: 174,
       columnNumber: 13
     });
   }
   return /* @__PURE__ */ jsxDEV("svg", { viewBox: "-75 -75 150 150", style: { width: "100%", height: "100%" }, children: [
     /* @__PURE__ */ jsxDEV(Visualizer, { pulseAmount, targetColor, radius, lineWidth }, void 0, false, {
       fileName: "<stdin>",
-      lineNumber: 177,
+      lineNumber: 195,
       columnNumber: 13
     }),
     /* @__PURE__ */ jsxDEV(
@@ -240,7 +253,7 @@ const GameCanvas = ({ frameData, config }) => {
       false,
       {
         fileName: "<stdin>",
-        lineNumber: 179,
+        lineNumber: 197,
         columnNumber: 13
       }
     ),
@@ -257,7 +270,7 @@ const GameCanvas = ({ frameData, config }) => {
       false,
       {
         fileName: "<stdin>",
-        lineNumber: 188,
+        lineNumber: 206,
         columnNumber: 17
       }
     ),
@@ -276,17 +289,17 @@ const GameCanvas = ({ frameData, config }) => {
       false,
       {
         fileName: "<stdin>",
-        lineNumber: 198,
+        lineNumber: 216,
         columnNumber: 17
       }
     ) }, void 0, false, {
       fileName: "<stdin>",
-      lineNumber: 197,
+      lineNumber: 215,
       columnNumber: 13
     })
   ] }, void 0, true, {
     fileName: "<stdin>",
-    lineNumber: 176,
+    lineNumber: 194,
     columnNumber: 9
   });
 };
