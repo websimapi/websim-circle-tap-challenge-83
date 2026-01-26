@@ -255,7 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div class="map-actions">
                     <button class="play-map-btn" data-id="${map.id}">Play</button>
-                    <button class="leaderboard-map-btn icon-only" data-id="${map.id}" title="Leaderboard">
+                    <button class="menu-btn leaderboard-map-btn icon-only" data-id="${map.id}" title="Leaderboard">
                          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h3v7H3v-7zm5-2h3v9H8v-9zm5-6h3v15h-3V5z"></path></svg>
                     </button>
                     ${isMine ? `
