@@ -71,13 +71,28 @@ export class UIController {
         this.elements.submitScoreBtn.textContent = 'Submit Score';
     }
 
-    showGameScreen() {
+    showGameScreen(mode = 'standard') {
         this.elements.startMenu.classList.add('hidden');
         this.elements.gameOverMenu.classList.add('hidden');
         this.elements.scoreDisplay.classList.remove('hidden');
         this.elements.levelDisplay.classList.remove('level-out', 'level-in');
         this.elements.difficultyIndicator.classList.remove('hidden');
         
+        if (mode === 'custom') {
+            this.elements.playerHeartsContainer.classList.remove('hidden');
+            // Setup hearts
+            this.elements.playerHearts.innerHTML = '';
+            for(let i=0; i<3; i++) {
+                this.elements.playerHearts.innerHTML += generateHeartSVG('player', i);
+            }
+            this.animateHearts(300, 'player');
+            // Hide standard lives display
+            const livesDisplay = document.getElementById('lives-display');
+            if (livesDisplay) livesDisplay.classList.add('hidden');
+        } else {
+            this.elements.playerHeartsContainer.classList.add('hidden');
+        }
+
         // Force reflow
         void this.elements.levelDisplay.offsetWidth;
         setTimeout(() => {

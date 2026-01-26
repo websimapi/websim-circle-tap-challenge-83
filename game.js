@@ -141,6 +141,10 @@ export class Game {
         this.currentDifficulty = difficulty;
         this.resizeCanvas();
 
+        // Reset tracking vars
+        this.lastAngle = -Math.PI / 2;
+        this.hasPassedMark = false;
+
         initAudio();
         playStart();
         
@@ -160,20 +164,16 @@ export class Game {
         this.currentColorHsl = hsl(getHslStringForLevel(1));
         this.targetColorHsl = hsl(getHslStringForLevel(1));
 
-        // VS specific reset
-        if (this.mode === 'vs') {
+        // VS and Custom specific reset
+        if (this.mode === 'vs' || this.mode === 'custom') {
             this.health = 300;
             this.opponentLevel = 1;
         }
         
         if (this.mode === 'custom') {
-            // Apply lives from map data if restarting
-            if (this.customMapData) {
-                this.lives = this.customMapData.lives || 3;
-            } else {
-                this.lives = 3; // Default fallback
-            }
-            if (this.onLivesUpdate) this.onLivesUpdate(this.lives);
+            // Custom mode now uses health drain mechanic instead of discrete lives
+            this.lives = 3; // Kept for legacy props, but health is primary
+            if (this.onLivesUpdate) this.onLivesUpdate(null); // Hide lives text
         }
 
         this.generateNewTarget();
@@ -269,8 +269,17 @@ export class Game {
         this.currentColorHsl.opacity += (this.targetColorHsl.opacity - this.currentColorHsl.opacity) * lerpFactor;
 
         if (this.gameState === 'playing') {
+            const prevAngle = this.angle;
             this.angle += this.speed * this.direction * deltaTime;
             
+            // Check for grace period ending ("passed mark once")
+            if (!this.hasPassedMark) {
+                 // Use a grace period (2.5s) to represent "passing the mark once" or one full rotation
+                 if (currentTime - (this.replayFrames[0]?.timestamp || currentTime) > 2500) {
+                     this.hasPassedMark = true;
+                 }
+            }
+
             // VS Logic: Drain
             if (this.mode === 'vs') {
                 const DRAIN_RATE_BASE = 10;
@@ -287,11 +296,18 @@ export class Game {
                     this.health = Math.max(0, this.health - drain);
                 }
 
-                // Snap to 0 if very low to ensure death triggers reliably
                 if (this.health < 1) this.health = 0;
-
                 if (this.vsManagerUpdate) this.vsManagerUpdate(deltaTime);
+            } else if (this.mode === 'custom') {
+                // Custom Map Drain Logic
+                // Only drain if we passed the mark (grace period over)
+                if (this.hasPassedMark) {
+                    const DRAIN_RATE = 15; // Constant pressure
+                    this.health = Math.max(0, this.health - DRAIN_RATE * deltaTime);
+                }
             }
+            
+            // Script.js hooks into game loop to update hearts if needed
 
             this.replayFrames.push({
                 angle: this.angle,
@@ -333,6 +349,11 @@ export class Game {
             this.direction *= -1;
             this.speed *= 1.04;
 
+            // Custom Mode Health Gain
+            if (this.mode === 'custom') {
+                this.health = Math.min(300, this.health + 40); // Gain health on success
+            }
+
             const lastFrame = this.replayFrames[this.replayFrames.length - 1];
             if (lastFrame) {
                 lastFrame.success = true;
@@ -354,20 +375,13 @@ export class Game {
             if (this.mode === 'standard') {
                 this.gameOver();
             } else if (this.mode === 'custom') {
-                 if (this.lives !== 999) {
-                    this.lives--;
-                    if (this.onLivesUpdate) this.onLivesUpdate(this.lives);
-                    
-                    if (this.lives <= 0) {
-                        this.gameOver();
-                    } else {
-                        playFail();
-                        this.generateNewTarget();
-                    }
-                } else {
-                    // Infinite lives
-                    playFail();
-                    this.generateNewTarget();
+                playFail();
+                // Custom Mode Drain Penalty
+                this.health = Math.max(0, this.health - 50); // Big penalty for miss
+                this.generateNewTarget();
+                
+                if (this.health <= 0) {
+                    this.gameOver();
                 }
             } else if (this.mode === 'zen') {
                 playFail();

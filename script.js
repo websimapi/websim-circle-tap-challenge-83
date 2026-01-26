@@ -105,11 +105,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // Sync level for drain logic handled in game loop
     };
     
-    // Hook for VS health updates
+    // Hook for VS/Custom health updates
     const originalGameLoop = game.gameLoop.bind(game);
     game.gameLoop = (t) => {
         originalGameLoop(t);
-        if (game.mode === 'vs') {
+        if (game.mode === 'vs' || game.mode === 'custom') {
             ui.updatePlayerHearts(game.health);
         }
     };
@@ -319,9 +319,9 @@ document.addEventListener('DOMContentLoaded', () => {
         customBrowserView.classList.add('hidden');
         game.setMode('custom', map);
         game.start('easy'); 
-        ui.showGameScreen();
+        ui.showGameScreen('custom');
         ui.updateDifficulty('custom');
-        ui.updateLives(map.lives || 3);
+        // ui.updateLives is skipped in favor of hearts
     }
 
     window.addEventListener('refreshCustomMaps', () => {
