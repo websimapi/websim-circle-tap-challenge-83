@@ -25,6 +25,9 @@
             <p>Draw a continuous loop. Start and end must meet.</p>
         </div>
         <div class="creator-ui-settings">
+            <div class="setting-item name-input-container">
+                <input type="text" id="creator-map-name" placeholder="Map Name" maxlength="20">
+            </div>
             <div class="setting-item">
                 <label>Lives:</label>
                 <select id="creator-lives">
@@ -61,6 +64,14 @@
             <div class="browser-tabs">
                 <button class="tab-btn active" data-tab="browse">Browse</button>
                 <button class="tab-btn" data-tab="mine">My Maps</button>
+            </div>
+            
+            <div class="browser-controls">
+                <label>Sort by:</label>
+                <select id="browser-sort-select">
+                    <option value="recent">Most Recent</option>
+                    <option value="played">Most Played</option>
+                </select>
             </div>
 
             <div id="custom-maps-list" class="list-container">

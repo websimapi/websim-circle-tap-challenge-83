@@ -151,7 +151,7 @@
 .browser-tabs {
     display: flex;
     gap: 10px;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
     justify-content: center;
 }
 
@@ -170,6 +170,25 @@
     color: white;
     border-color: var(--accent-color);
     font-weight: bold;
+}
+
+.browser-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+    font-size: 0.9rem;
+    color: #aaa;
+}
+
+#browser-sort-select {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 6px;
+    outline: none;
 }
 
 .browser-footer {
@@ -197,10 +216,10 @@
 .map-card {
     background: rgba(255,255,255,0.05);
     border-radius: 12px;
-    padding: 12px;
+    padding: 10px;
     margin-bottom: 10px;
     display: flex;
-    justify-content: space-between;
+    gap: 12px;
     align-items: center;
     border: 1px solid transparent;
     transition: background 0.2s;
@@ -211,10 +230,47 @@
     border-color: rgba(255,255,255,0.1);
 }
 
+.map-preview-container {
+    width: 60px;
+    height: 60px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 8px;
+    flex-shrink: 0;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.map-preview-svg {
+    width: 100%;
+    height: 100%;
+}
+
+.map-preview-svg path {
+    filter: drop-shadow(0 0 2px var(--accent-color));
+}
+
+.map-content {
+    flex-grow: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.map-info {
+    min-width: 0;
+}
+
 .map-info h3 {
     margin: 0 0 4px 0;
     font-size: 1rem;
     color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .map-info .meta {
@@ -222,11 +278,53 @@
     color: #aaa;
     display: flex;
     gap: 8px;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+}
+
+.map-info .stats {
+    display: flex;
+    gap: 8px;
+    font-size: 0.75rem;
+    color: #ccc;
+}
+
+.stat-badge {
+    background: rgba(255,255,255,0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.stat-badge.drain {
+    color: #ffd700;
 }
 
 .map-actions {
     display: flex;
     gap: 8px;
+    flex-shrink: 0;
+}
+
+#creator-map-name {
+    background: rgba(0,0,0,0.5);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 1rem;
+    width: 200px;
+    text-align: center;
+}
+
+#creator-map-name::placeholder {
+    color: rgba(255,255,255,0.5);
+}
+
+.name-input-container {
+    margin-bottom: 5px;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
 }
 
 .play-map-btn {

@@ -26,27 +26,57 @@ export async function createCustomMap(mapData) {
     return newMap;
 }
 
-export async function getCustomMaps(filter = 'browse') {
+export async function getCustomMaps(filter = 'browse', sort = 'recent') {
+    // 1. Fetch all profiles to aggregate maps and scores
+    const profiles = await room.collection(NEW_COLLECTION_NAME).getList();
+    
+    // 2. Aggregate all play scores to calculate stats globally
+    const allScores = [];
+    profiles.forEach(p => {
+        if (p.custom_map_scores && Array.isArray(p.custom_map_scores)) {
+            allScores.push(...p.custom_map_scores);
+        }
+    });
+
+    let resultMaps = [];
+
     if (filter === 'mine') {
-        const { profile } = await getMyProfile();
-        if (!profile) return [];
-        return profile.created_maps || [];
+        const { user } = await getMyProfile();
+        // Find my profile from the list we just fetched to save a call, or specifically filter
+        const myProfile = profiles.find(p => p.username === user.username);
+        if (myProfile && myProfile.created_maps) {
+            resultMaps = [...myProfile.created_maps];
+        }
     } else {
-        // Browse: Fetch all profiles and aggregate maps
-        // Note: getList returns latest records. This limits browsing to active users/recent profiles
-        const profiles = await room.collection(NEW_COLLECTION_NAME).getList();
-        
-        let allMaps = [];
+        // Browse: Aggregate maps from all profiles
         profiles.forEach(p => {
             if (p.created_maps && Array.isArray(p.created_maps)) {
-                allMaps = allMaps.concat(p.created_maps);
+                resultMaps = resultMaps.concat(p.created_maps);
             }
         });
-        
-        // Sort by newest first
-        allMaps.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-        return allMaps;
     }
+    
+    // 3. Attach Stats (Play Count)
+    resultMaps.forEach(map => {
+        const mapPlays = allScores.filter(s => s.mapId === map.id).length;
+        map.playCount = mapPlays;
+        
+        // Ensure legacy maps have a date if missing
+        if (!map.created_at) map.created_at = new Date(0).toISOString();
+    });
+
+    // 4. Sort
+    if (sort === 'played') {
+        resultMaps.sort((a, b) => {
+            if (b.playCount !== a.playCount) return b.playCount - a.playCount;
+            return new Date(b.created_at) - new Date(a.created_at);
+        });
+    } else {
+        // Recent
+        resultMaps.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    }
+
+    return resultMaps;
 }
 
 export async function deleteCustomMap(mapId) {

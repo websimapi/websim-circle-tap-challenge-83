@@ -75,6 +75,8 @@ export class CustomLevelCreator {
         this.points = [];
         this.isDrawing = false;
         this.isValid = false;
+        const nameInput = document.getElementById('creator-map-name');
+        if(nameInput) nameInput.value = '';
         this.render();
     }
 
@@ -170,6 +172,9 @@ export class CustomLevelCreator {
 
         const drainInput = document.getElementById('creator-drain');
         if (drainInput) drainInput.checked = mapData.drainEnabled !== false; // Default true
+        
+        const nameInput = document.getElementById('creator-map-name');
+        if (nameInput) nameInput.value = mapData.name || '';
 
         this.isValid = true; // Assumed valid since it was saved
         this.isDrawing = false;
@@ -208,9 +213,17 @@ export class CustomLevelCreator {
         
         const drainInput = document.getElementById('creator-drain');
         const drainEnabled = drainInput.checked;
+        
+        const nameInput = document.getElementById('creator-map-name');
+        const mapName = nameInput.value.trim() || `Map ${new Date().toLocaleDateString()}`;
 
         try {
-            await createCustomMap({ points: normalizedPoints, lives: lives, drainEnabled: drainEnabled });
+            await createCustomMap({ 
+                points: normalizedPoints, 
+                lives: lives, 
+                drainEnabled: drainEnabled,
+                name: mapName
+            });
             alert("Map saved as a new entry!");
             this.close();
             // trigger refresh of browser?
