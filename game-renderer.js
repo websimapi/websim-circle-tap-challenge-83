@@ -92,85 +92,67 @@ export class GameRenderer {
         // Use additive blending for a glowing effect
         this.ctx.save();
         this.ctx.globalCompositeOperation = 'lighter';
-        this.ctx.translate(this.centerX, this.centerY); // Translate to center of screen
+        this.ctx.translate(this.centerX, this.centerY);
 
-        const pulseColor = currentColorHsl.copy();
-        
+        const color = currentColorHsl.copy();
+        const r = color.r;
+        const g = color.g;
+        const b = color.b;
+
         if (this.customPoints && this.customPath) {
             this.ctx.lineJoin = 'round';
             this.ctx.lineCap = 'round';
-            const colorStr = currentColorHsl.toString();
             
-            this.ctx.strokeStyle = colorStr;
-            this.ctx.shadowBlur = 0; // Disable expensive shadow blur
-
-            // Layer 1: Wide ambient glow (simulated via transparency)
-            this.ctx.lineWidth = this.lineWidth * (3 + pulseAmount * 4);
-            this.ctx.globalAlpha = 0.15 * pulseAmount;
+            // Soft Gradient Glow using layered strokes
+            // We draw from widest/faintest to narrowest/brightest to simulate a gradient
+            
+            // 1. Wide Ambient Aura (Very transparent, very wide)
+            this.ctx.lineWidth = this.lineWidth * (4 + pulseAmount * 6);
+            this.ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${0.05 * pulseAmount})`;
             this.ctx.stroke(this.customPath);
 
-            // Layer 2: Focused bright glow
-            this.ctx.lineWidth = this.lineWidth * (1.5 + pulseAmount * 2);
-            this.ctx.globalAlpha = 0.3 * pulseAmount;
+            // 2. Medium Glow
+            this.ctx.lineWidth = this.lineWidth * (2 + pulseAmount * 3);
+            this.ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${0.15 * pulseAmount})`;
             this.ctx.stroke(this.customPath);
 
-            // Layer 3: Core definition
-            this.ctx.lineWidth = this.lineWidth * (0.8 + pulseAmount * 0.5);
-            this.ctx.globalAlpha = 0.6 + (0.3 * pulseAmount);
+            // 3. Inner Glow
+            this.ctx.lineWidth = this.lineWidth * (1 + pulseAmount);
+            this.ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${0.4 * pulseAmount})`;
+            this.ctx.stroke(this.customPath);
+            
+            // 4. Core Brightness (White-hot center tint)
+            this.ctx.lineWidth = this.lineWidth * 0.8;
+            this.ctx.strokeStyle = `rgba(${Math.min(255, r+50)}, ${Math.min(255, g+50)}, ${Math.min(255, b+50)}, ${0.2 * pulseAmount})`;
             this.ctx.stroke(this.customPath);
 
-            this.ctx.globalAlpha = 1;
         } else {
-            // Standard Mode: Radial Pulse Waves
-            // We draw 2 main gradient pulses: one expanding out, one internal
-
-            // Outer Glow - smoother quadratic falloff
-            const outerRadiusMax = this.radius * (1 + pulseAmount * 0.8);
-            const outerGradient = this.ctx.createRadialGradient(0, 0, this.radius, 0, 0, outerRadiusMax);
+            // Standard Circular Mode
+            // Single clean radial gradient that peaks at the track and fades out both ways
             
-            pulseColor.opacity = pulseAmount * 0.5;
-            outerGradient.addColorStop(0, pulseColor.toString());
-            pulseColor.opacity = pulseAmount * 0.2;
-            outerGradient.addColorStop(0.4, pulseColor.toString());
-            pulseColor.opacity = 0;
-            outerGradient.addColorStop(1, pulseColor.toString());
+            const maxRadius = this.radius * (1.5 + pulseAmount * 0.5); 
+            const grad = this.ctx.createRadialGradient(0, 0, 0, 0, 0, maxRadius);
+            
+            // Calculate stops relative to maxRadius
+            const trackRatio = this.radius / maxRadius;
+            const spread = 0.15 + (0.1 * pulseAmount); // How wide the glow is
+            
+            const cStr = `${r}, ${g}, ${b}`;
+            
+            // Ensure center is absolutely transparent
+            grad.addColorStop(0, `rgba(${cStr}, 0)`);
+            grad.addColorStop(Math.max(0, trackRatio - spread), `rgba(${cStr}, 0)`);
+            
+            // Peak at track
+            grad.addColorStop(trackRatio, `rgba(${cStr}, ${0.6 * pulseAmount})`);
+            
+            // Fade out
+            grad.addColorStop(Math.min(1, trackRatio + spread), `rgba(${cStr}, 0)`);
+            grad.addColorStop(1, `rgba(${cStr}, 0)`);
 
-            this.ctx.fillStyle = outerGradient;
+            this.ctx.fillStyle = grad;
             this.ctx.beginPath();
-            this.ctx.arc(0, 0, outerRadiusMax, 0, Math.PI*2);
-            this.ctx.fill();
-
-            // Inner Glow - deeper gradient towards center transparent
-            const innerRadiusMin = Math.max(0, this.radius * (1 - pulseAmount * 0.6));
-            const innerGradient = this.ctx.createRadialGradient(0, 0, innerRadiusMin, 0, 0, this.radius);
-            
-            pulseColor.opacity = 0;
-            innerGradient.addColorStop(0, pulseColor.toString());
-            pulseColor.opacity = pulseAmount * 0.1;
-            innerGradient.addColorStop(0.5, pulseColor.toString());
-            pulseColor.opacity = pulseAmount * 0.4;
-            innerGradient.addColorStop(1, pulseColor.toString());
-
-            this.ctx.fillStyle = innerGradient;
-            this.ctx.beginPath();
-            this.ctx.arc(0, 0, this.radius, 0, Math.PI*2);
-            this.ctx.fill();
-
-            // Core Bloom - Subtle ambient light, ensuring it fades to transparent at center
-            // Using a large radial gradient that covers the whole area but fades out properly
-            const bloomRadius = this.radius * 1.5;
-            const bloomGradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, bloomRadius);
-            
-            pulseColor.opacity = 0;
-            bloomGradient.addColorStop(0, pulseColor.toString()); // Transparent center
-            pulseColor.opacity = pulseAmount * 0.15;
-            bloomGradient.addColorStop(0.7, pulseColor.toString()); // Peak near track
-            pulseColor.opacity = 0;
-            bloomGradient.addColorStop(1, pulseColor.toString());
-            
-            this.ctx.fillStyle = bloomGradient;
-            this.ctx.beginPath();
-            this.ctx.arc(0, 0, bloomRadius, 0, Math.PI*2);
+            this.ctx.arc(0, 0, maxRadius, 0, Math.PI*2);
             this.ctx.fill();
         }
 
@@ -223,22 +205,25 @@ export class GameRenderer {
         this.ctx.save();
         this.ctx.translate(this.centerX, this.centerY);
 
-        // Draw Dark Background for contrast (was previously box-shadow)
+        // Draw Dark Background for contrast (simulates a shadow behind the track)
         if (!this.customPoints) {
-            const shadowRadius = this.radius * 1.05; // Slightly larger than track
-            // Fix: Start gradient at center (0) but keep it transparent until closer to the ring
-            const bgGradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, shadowRadius + 40);
-            bgGradient.addColorStop(0, 'rgba(0,0,0,0)'); // Fully transparent center
+            const outerR = this.radius + 60;
+            const bgGradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, outerR);
             
-            // Calculate start point for darkness to ensure center is clean
-            const startRatio = this.radius / (shadowRadius + 40);
-            bgGradient.addColorStop(Math.max(0, startRatio - 0.1), 'rgba(0,0,0,0)'); 
-            bgGradient.addColorStop(startRatio, 'rgba(0,0,0,0.8)'); // Dark backing near track
+            const trackRatio = this.radius / outerR;
+            // Strict transparent center
+            bgGradient.addColorStop(0, 'rgba(0,0,0,0)'); 
+            bgGradient.addColorStop(Math.max(0, trackRatio - 0.2), 'rgba(0,0,0,0)'); 
+            
+            // Dark ring
+            bgGradient.addColorStop(trackRatio, 'rgba(0,0,0,0.6)'); 
+            
+            // Fade out
             bgGradient.addColorStop(1, 'rgba(0,0,0,0)');
             
             this.ctx.fillStyle = bgGradient;
             this.ctx.beginPath();
-            this.ctx.arc(0, 0, shadowRadius + 40, 0, Math.PI*2);
+            this.ctx.arc(0, 0, outerR, 0, Math.PI*2);
             this.ctx.fill();
         }
 
