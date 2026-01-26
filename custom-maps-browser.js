@@ -1,76 +1,86 @@
 import { getCustomMaps, deleteCustomMap, getCustomMapLeaderboard } from './custom-maps-api.js';
 
 export class CustomMapsBrowser {
-    constructor(elements, ui, game, customCreator, leaderboardController, onInteraction) {
-        this.elements = elements; // Needed for specific IDs
+    constructor(elements, ui, game, customLevelCreator, leaderboardController, callbacks) {
+        this.elements = elements;
         this.ui = ui;
         this.game = game;
-        this.customCreator = customCreator;
+        this.customLevelCreator = customLevelCreator;
         this.leaderboardController = leaderboardController;
-        this.onInteraction = onInteraction;
+        this.callbacks = callbacks || {}; // { onInteraction: () => {} }
         
-        this.view = document.getElementById('custom-browser-view');
-        this.listContainer = document.getElementById('custom-maps-list');
         this.currentTab = 'browse';
+        this.maps = [];
         
         this._bindEvents();
     }
 
     _bindEvents() {
-        // Mode Button (Entry Point)
-        const customModeBtn = document.getElementById('custom-mode-btn');
-        if (customModeBtn) {
-            customModeBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.view.classList.remove('hidden');
-                this.loadCustomMaps(this.currentTab);
-            });
-        }
-
-        // Close Button
-        const closeBtn = document.getElementById('close-browser-btn');
-        if (closeBtn) {
-            closeBtn.addEventListener('click', () => {
-                this.view.classList.add('hidden');
-            });
-        }
-
-        // Tabs
-        const tabBtns = document.querySelectorAll('.tab-btn');
+        // Tab switching
+        const tabBtns = this.elements.customBrowserView.querySelectorAll('.tab-btn');
         tabBtns.forEach(btn => {
             btn.addEventListener('click', (e) => {
                 tabBtns.forEach(b => b.classList.remove('active'));
                 e.target.classList.add('active');
                 this.currentTab = e.target.dataset.tab;
-                this.loadCustomMaps(this.currentTab);
+                this.loadMaps();
             });
         });
 
-        // Global refresh event
+        // Close button
+        const closeBtn = document.getElementById('close-browser-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => this.hide());
+        }
+
+        // Custom Mode Button (Opener)
+        const openBtn = document.getElementById('custom-mode-btn');
+        if (openBtn) {
+            openBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.show();
+            });
+        }
+        
+        // Refresh event from creator
         window.addEventListener('refreshCustomMaps', () => {
-            if (!this.view.classList.contains('hidden')) {
-                this.loadCustomMaps(this.currentTab);
+            if (!this.elements.customBrowserView.classList.contains('hidden')) {
+                this.loadMaps();
             }
         });
     }
 
-    async loadCustomMaps(filter) {
-        this.listContainer.innerHTML = '<p>Loading maps...</p>';
+    show() {
+        this.elements.customBrowserView.classList.remove('hidden');
+        this.loadMaps();
+    }
+
+    hide() {
+        this.elements.customBrowserView.classList.add('hidden');
+    }
+
+    async loadMaps() {
+        const list = document.getElementById('custom-maps-list');
+        list.innerHTML = '<p>Loading maps...</p>';
         try {
-            const maps = await getCustomMaps(filter);
-            this.renderCustomMapsList(maps, filter === 'mine');
+            this.maps = await getCustomMaps(this.currentTab);
+            this.renderList();
         } catch(e) {
-            this.listContainer.innerHTML = '<p>Error loading maps.</p>';
+            console.error(e);
+            list.innerHTML = '<p>Error loading maps.</p>';
         }
     }
 
-    renderCustomMapsList(maps, isMine) {
-        if (maps.length === 0) {
-            this.listContainer.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">No maps found.</p>';
+    renderList() {
+        const list = document.getElementById('custom-maps-list');
+        const isMine = this.currentTab === 'mine';
+        
+        if (this.maps.length === 0) {
+            list.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">No maps found.</p>';
             return;
         }
 
-        this.listContainer.innerHTML = maps.map(map => `
+        list.innerHTML = this.maps.map(map => `
             <div class="map-card">
                 <div class="map-info">
                     <h3>${map.name}</h3>
@@ -92,77 +102,72 @@ export class CustomMapsBrowser {
             </div>
         `).join('');
 
-        this._bindCardEvents(maps, isMine);
+        this._bindListEvents(list, isMine);
     }
 
-    _bindCardEvents(maps, isMine) {
-        this.listContainer.querySelectorAll('.play-map-btn').forEach(btn => {
+    _bindListEvents(list, isMine) {
+        // Play
+        list.querySelectorAll('.play-map-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                if(this.onInteraction) this.onInteraction(); 
+                if(this.callbacks.onInteraction) this.callbacks.onInteraction();
                 const mapId = e.target.dataset.id;
-                const map = maps.find(m => m.id === mapId);
+                const map = this.maps.find(m => m.id === mapId);
                 this.startCustomGame(map);
             });
         });
 
-        this.listContainer.querySelectorAll('.leaderboard-map-btn').forEach(btn => {
+        // Leaderboard
+        list.querySelectorAll('.leaderboard-map-btn').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 const btnEl = e.target.closest('.leaderboard-map-btn');
                 const mapId = btnEl.dataset.id;
-                const map = maps.find(m => m.id === mapId);
+                const map = this.maps.find(m => m.id === mapId);
                 
-                this.view.classList.add('hidden');
+                this.hide();
                 
-                // Load Custom Leaderboard
-                // We access the leaderboardController's show method, but need to indicate origin
-                // Note: The script.js handles the 'close' event to re-show browser if needed
+                // Signal script that origin was custom browser? 
+                // We handle this via callback or direct state in script, 
+                // but here we just invoke the controller.
                 
+                // Ideally script.js sets a flag, but we can pass a callback for "back" logic
+                // For now, script.js handles the "back" button logic based on global state variables.
+                // We'll dispatch an event or just let it happen.
+                
+                if(this.callbacks.onLeaderboardOpen) this.callbacks.onLeaderboardOpen();
+
                 const scores = await getCustomMapLeaderboard(mapId);
-                // We need to signal to script.js or leaderboard controller that we are in custom-browser mode
-                // This is slightly tricky with strict encapsulation.
-                // script.js manages 'leaderboardOrigin' var.
-                // We can fire a custom event or use a callback in constructor. 
-                
-                // Hack: We set a property on the controller instance if we want, or rely on script.js handling
-                // Ideally, script.js should handle this logic, but we moved it here.
-                
-                // Let's emit an event that script.js listens to
-                const event = new CustomEvent('openCustomLeaderboard', { 
-                    detail: { 
-                        origin: 'custom-browser',
-                        scores: scores,
-                        title: `Leaderboard: ${map.name}`
-                    }
-                });
-                window.dispatchEvent(event);
+                this.leaderboardController.show('custom_map'); 
+                this.leaderboardController.loadLeaderboard('custom_map', scores, `Leaderboard: ${map.name}`);
             });
         });
 
         if (isMine) {
-            this.listContainer.querySelectorAll('.delete-map-btn').forEach(btn => {
+            // Delete
+            list.querySelectorAll('.delete-map-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const btnEl = e.target.closest('.delete-map-btn');
                     const id = btnEl.dataset.id;
                     if(confirm('Delete this map? This cannot be undone.')) {
                         await deleteCustomMap(id);
-                        this.loadCustomMaps('mine');
+                        this.loadMaps();
                     }
                 });
             });
 
-            this.listContainer.querySelectorAll('.edit-map-btn').forEach(btn => {
+            // Edit
+            list.querySelectorAll('.edit-map-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const btnEl = e.target.closest('.edit-map-btn');
                     const id = btnEl.dataset.id;
-                    const map = maps.find(m => m.id === id);
-                    this.customCreator.loadForEditing(map);
+                    const map = this.maps.find(m => m.id === id);
+                    this.customLevelCreator.loadForEditing(map);
                 });
             });
         }
     }
 
     startCustomGame(map) {
-        this.view.classList.add('hidden');
+        this.hide();
         this.game.setMode('custom', map);
         this.game.start('easy'); 
         this.ui.showGameScreen('custom', map);

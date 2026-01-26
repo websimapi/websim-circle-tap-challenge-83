@@ -1,16 +1,14 @@
-import { HUDController } from './ui-hud-controller.js';
-import { VSUIController } from './ui-vs-controller.js';
+import { generateHeartSVG } from './utils.js';
+import { VSUIHandler } from './vs-ui-handler.js';
 
 export class UIController {
     constructor(elements) {
         this.elements = elements;
-        
-        // Initialize Sub-Controllers
-        this.hud = new HUDController(elements);
-        this.vs = new VSUIController(elements);
-
+        this.levelFadeTimeout = null;
         this.gameOverButtonTimeout = null;
         this.restartTextTimeout = null;
+        
+        this.vsHandler = new VSUIHandler(elements);
     }
 
     showAbout() {
@@ -70,7 +68,6 @@ export class UIController {
         if(this.elements.aboutView) this.elements.aboutView.classList.add('hidden');
         const customBrowser = document.getElementById('custom-browser-view');
         if (customBrowser) customBrowser.classList.add('hidden');
-        
         this.resetVSUI();
         this.clearTimeouts(); 
         this.elements.submitScoreBtn.disabled = false;
@@ -96,7 +93,14 @@ export class UIController {
 
             if (useDrain) {
                  if (livesDisplay) livesDisplay.classList.add('hidden');
-                 this.hud.setupCustomHearts(true);
+                 if (customHearts) {
+                    customHearts.classList.remove('hidden');
+                    customHearts.innerHTML = '';
+                    for(let i=0; i<3; i++) {
+                        customHearts.innerHTML += generateHeartSVG('custom', i);
+                    }
+                    this.animateHearts(300, 'custom');
+                }
             } else {
                 if (livesDisplay) livesDisplay.classList.remove('hidden');
                 if (customHearts) customHearts.classList.add('hidden');
@@ -172,9 +176,74 @@ export class UIController {
             gameOverButtons.forEach(btn => btn.disabled = false);
         }, 800); // 0.8 second delay
 
-        this.hud.levelFadeTimeout = setTimeout(() => {
+        this.levelFadeTimeout = setTimeout(() => {
             this.elements.levelDisplay.classList.add('hidden');
         }, 3000);
+    }
+
+    updateScore(score) {
+        if (!this.elements.scoreDisplay.classList.contains('hidden')) {
+            this.elements.scoreEl.textContent = score;
+        }
+        // Always update player VS score just in case
+        const playerVsScore = document.getElementById('player-vs-score');
+        if (playerVsScore) {
+            playerVsScore.textContent = `Score: ${score}`;
+        }
+    }
+
+    updateLives(lives) {
+        const livesDisplay = document.getElementById('lives-display');
+        const livesCount = document.getElementById('lives-count');
+        if (livesDisplay && livesCount) {
+            if (lives === undefined || lives === null) {
+                livesDisplay.classList.add('hidden');
+            } else {
+                livesDisplay.classList.remove('hidden');
+                livesCount.textContent = lives === 999 ? '∞' : lives;
+            }
+        }
+    }
+
+    updateOpponentScore(score) {
+        this.vsHandler.updateOpponentScore(score);
+    }
+
+    updateOpponentLevel(level) {
+        this.vsHandler.updateOpponentLevel(level);
+    }
+
+    updateLevel(level, isInitial = false) {
+        const levelDisplay = this.elements.levelDisplay;
+        
+        if (isInitial) {
+            levelDisplay.classList.remove('hidden'); // Ensure it's visible
+            levelDisplay.textContent = level;
+            levelDisplay.classList.remove('level-in', 'level-out');
+            // Force reflow
+            void levelDisplay.offsetWidth;
+            setTimeout(() => {
+                levelDisplay.classList.add('level-in');
+            }, 50);
+            return;
+        }
+
+        levelDisplay.classList.remove('level-in');
+        levelDisplay.classList.add('level-out');
+
+        const onOutAnimationEnd = () => {
+            levelDisplay.removeEventListener('animationend', onOutAnimationEnd);
+            levelDisplay.textContent = level;
+            levelDisplay.classList.remove('level-out');
+            levelDisplay.classList.add('level-in');
+
+            const onInAnimationEnd = () => {
+                levelDisplay.removeEventListener('animationend', onInAnimationEnd);
+                levelDisplay.classList.remove('level-in');
+            };
+            levelDisplay.addEventListener('animationend', onInAnimationEnd, { once: true });
+        };
+        levelDisplay.addEventListener('animationend', onOutAnimationEnd, { once: true });
     }
 
     showReplayContainer() {
@@ -225,8 +294,79 @@ export class UIController {
         }
     }
 
+    updateDifficulty(difficulty) {
+        // Update top-right indicator
+        const indicator = document.getElementById('difficulty-indicator');
+        if (indicator) {
+            indicator.setAttribute('data-difficulty', difficulty);
+            indicator.title = `Difficulty: ${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}`;
+            
+            // Handle Custom Icon toggle
+            const icon = indicator.querySelector('.custom-icon');
+            const bars = indicator.querySelectorAll('.bar');
+            
+            if (difficulty === 'custom') {
+                if(icon) icon.classList.remove('hidden');
+                bars.forEach(b => b.classList.add('hidden'));
+            } else {
+                if(icon) icon.classList.add('hidden');
+                bars.forEach(b => b.classList.remove('hidden'));
+            }
+        }
+
+        // Update buttons
+        const allDiffBtns = document.querySelectorAll('.diff-btn');
+        allDiffBtns.forEach(btn => {
+            if (btn.dataset.difficulty === difficulty) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+    }
+
+    // VS Mode UI Methods
+    updateVSLobbyPreview(users) {
+        this.vsHandler.updateLobbyPreview(users);
+    }
+
+    updateVSStatus(text, show) {
+        this.vsHandler.updateStatus(text, show);
+    }
+
+    setupVSMatch(opponent) {
+        this.vsHandler.setupMatch(opponent);
+    }
+
+    updatePlayerHearts(health) {
+        this.vsHandler.updatePlayerHearts(health);
+    }
+
+    updateOpponentHearts(health) {
+        this.vsHandler.updateOpponentHearts(health);
+    }
+
+    animateHearts(health, prefix) {
+        this.vsHandler.animateHearts(health, prefix);
+    }
+
+    resetVSUI() {
+        this.vsHandler.reset();
+    }
+    
+    // removed updateVSLobbyPreview() logic
+    // removed updateVSStatus() logic
+    // removed setupVSMatch() logic
+    // removed updatePlayerHearts() logic
+    // removed updateOpponentHearts() logic
+    // removed animateHearts() logic
+    // removed resetVSUI() logic
+
     clearTimeouts() {
-        this.hud.clearTimeouts();
+        if (this.levelFadeTimeout) {
+            clearTimeout(this.levelFadeTimeout);
+            this.levelFadeTimeout = null;
+        }
         if (this.gameOverButtonTimeout) {
             clearTimeout(this.gameOverButtonTimeout);
             this.gameOverButtonTimeout = null;
@@ -236,35 +376,4 @@ export class UIController {
             this.restartTextTimeout = null;
         }
     }
-
-    // Delegation to Sub-Controllers
-    
-    // HUD
-    updateScore(score) { this.hud.updateScore(score); }
-    updateLives(lives) { this.hud.updateLives(lives); }
-    updateLevel(level, isInitial) { this.hud.updateLevel(level, isInitial); }
-    updateDifficulty(diff) { this.hud.updateDifficulty(diff); }
-    updatePlayerHearts(health) { 
-        // Handles both VS and Custom Mode container updates if needed
-        this.vs.updatePlayerHearts(health); 
-        this.hud.animateHearts(health, 'custom');
-    }
-
-    // VS
-    updateVSLobbyPreview(users) { this.vs.updateVSLobbyPreview(users); }
-    updateVSStatus(text, show) { this.vs.updateVSStatus(text, show); }
-    setupVSMatch(opponent) { this.vs.setupVSMatch(opponent); }
-    updateOpponentHearts(health) { this.vs.updateOpponentHearts(health); }
-    updateOpponentScore(score) { this.vs.updateOpponentScore(score); }
-    updateOpponentLevel(level) { this.vs.updateOpponentLevel(level); }
-    resetVSUI() { 
-        this.vs.resetVSUI(); 
-        // Ensure main score is visible if not in menu
-        if (this.elements.startMenu.classList.contains('hidden') && this.elements.gameOverMenu.classList.contains('hidden')) {
-            this.elements.scoreDisplay.classList.remove('hidden');
-        }
-    }
-
-    // removed generateHeartSVG usage - moved to utils/controllers
-    // removed animateHearts() - moved to controllers
 }

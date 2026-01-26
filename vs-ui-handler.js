@@ -1,11 +1,11 @@
 import { generateHeartSVG } from './utils.js';
 
-export class VSUIController {
+export class VSUIHandler {
     constructor(elements) {
         this.elements = elements;
     }
 
-    updateVSLobbyPreview(users) {
+    updateLobbyPreview(users) {
         const container = document.getElementById('vs-lobby-preview');
         if (!container) return;
 
@@ -27,7 +27,6 @@ export class VSUIController {
             const wrapper = document.createElement('div');
             wrapper.className = 'lobby-avatar-container';
             wrapper.dataset.clientId = user.clientId; // Store ID for click handling
-            // Reverse z-index so first element is on top of the stack
             wrapper.style.zIndex = maxAvatars - index; 
 
             const img = document.createElement('img');
@@ -47,13 +46,13 @@ export class VSUIController {
         }
     }
 
-    updateVSStatus(text, show) {
+    updateStatus(text, show) {
         this.elements.vsStatusDisplay.textContent = text;
         if (show) this.elements.vsStatusDisplay.classList.remove('hidden');
         else this.elements.vsStatusDisplay.classList.add('hidden');
     }
 
-    setupVSMatch(opponent) {
+    setupMatch(opponent) {
         this.elements.difficultyIndicator.classList.add('hidden');
         this.elements.scoreDisplay.classList.add('hidden'); // Hide main score
         this.elements.playerHeartsContainer.classList.remove('hidden');
@@ -87,23 +86,24 @@ export class VSUIController {
     }
 
     updatePlayerHearts(health) {
-        this.animateHearts(health, 'player');
+        this.animateHearts(health, 'player'); // VS mode container
+        this.animateHearts(health, 'custom'); // Custom mode container
     }
 
     updateOpponentHearts(health) {
         this.animateHearts(health, 'opp');
     }
 
+    updateOpponentLevel(level) {
+        const el = document.getElementById('opponent-level');
+        if (el) el.textContent = level;
+    }
+    
     updateOpponentScore(score) {
         const opponentScore = document.getElementById('opponent-score');
         if (opponentScore) {
             opponentScore.textContent = `Score: ${score}`;
         }
-    }
-
-    updateOpponentLevel(level) {
-        const el = document.getElementById('opponent-level');
-        if (el) el.textContent = level;
     }
 
     animateHearts(health, prefix) {
@@ -125,7 +125,7 @@ export class VSUIController {
             if (wrapper) {
                 if (percentage === 1) {
                     wrapper.classList.add('heart-pulsing');
-                    wrapper.style.filter = ''; // Ensure we clear grayscale if coming from 0
+                    wrapper.style.filter = '';
                 } else if (percentage === 0) {
                     wrapper.classList.remove('heart-pulsing');
                     wrapper.style.filter = 'grayscale(1) brightness(0.5)';
@@ -137,11 +137,19 @@ export class VSUIController {
         }
     }
 
-    resetVSUI() {
+    reset() {
         this.elements.difficultyIndicator.classList.remove('hidden');
         this.elements.playerHeartsContainer.classList.add('hidden');
         this.elements.opponentView.classList.add('hidden');
         this.elements.vsStatusDisplay.classList.add('hidden');
         if (this.elements.vsBackBtn) this.elements.vsBackBtn.classList.add('hidden');
+        
+        // Ensure main score is visible if not in menu
+        const startHidden = this.elements.startMenu.classList.contains('hidden');
+        const gameoverHidden = this.elements.gameOverMenu.classList.contains('hidden');
+        
+        if (startHidden && gameoverHidden) {
+            this.elements.scoreDisplay.classList.remove('hidden');
+        }
     }
 }

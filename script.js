@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     
-    // UI Elements map
+    // UI Elements
     const elements = {
         scoreDisplay: document.getElementById('score-display'),
         scoreEl: document.getElementById('score'),
@@ -92,16 +92,18 @@ document.addEventListener('DOMContentLoaded', () => {
         onInteraction: handleFirstInteraction
     });
 
-    const customBrowser = new CustomMapsBrowser(elements, ui, game, customCreator, leaderboardController, handleFirstInteraction);
-
     const inputController = new InputController(game, handleFirstInteraction);
     inputController.init();
+
+    // removed leaderboard logic, state variables and handlers (moved to LeaderboardController)
+    // removed tap and spacebar handlers (moved to InputController)
 
     // Set up game callbacks
     game.onScoreUpdate = (score) => ui.updateScore(score);
     game.onLivesUpdate = (lives) => ui.updateLives(lives);
     game.onLevelUp = (level, isInitial) => {
         ui.updateLevel(level, isInitial);
+        // Sync level for drain logic handled in game loop
     };
     
     // Hook for VS/Custom health updates
@@ -125,31 +127,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- EVENT LISTENERS ---
-
     // Difficulty Selection
     document.querySelectorAll('.diff-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            e.stopPropagation(); 
-            handleFirstInteraction(); 
+            e.stopPropagation(); // Prevent bubbling to start menu
+            handleFirstInteraction(); // Start audio on difficulty select
             const difficulty = btn.dataset.difficulty;
             currentDifficulty = difficulty;
             ui.updateDifficulty(difficulty);
-            game.setDifficulty(difficulty);
+            game.setDifficulty(difficulty); // Update visuals
         });
     });
 
-    // VS Mode Interactions
+    // VS Mode Button
     if (elements.vsModeBtn) {
         elements.vsModeBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             handleFirstInteraction();
             vsManager.startSeeking();
             ui.showVSZenScreen();
-            game.start('easy'); 
+            game.start('easy'); // Start Zen mode logic internally set in vsManager
         });
     }
 
+    // VS Lobby Preview Click (Direct Challenge)
     const vsLobbyPreview = document.getElementById('vs-lobby-preview');
     if (vsLobbyPreview) {
         vsLobbyPreview.addEventListener('click', (e) => {
@@ -161,15 +162,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 const success = vsManager.directChallenge(wrapper.dataset.clientId);
                 if (success) {
                     ui.showVSZenScreen();
-                    game.start('easy'); 
+                    game.start('easy'); // Start game loop for visual feedback
                 } else {
-                    // Feedback
+                    // Show feedback without leaving menu
                     const tts = document.getElementById('tap-to-start');
                     if (tts) {
                         const originalText = tts.innerText;
                         tts.innerText = "PLAYER BUSY";
                         tts.style.color = 'var(--fail-color)';
                         tts.classList.remove('blink');
+                        
                         setTimeout(() => {
                             tts.innerText = originalText;
                             tts.style.color = '';
@@ -181,6 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // VS Back Button
     if (elements.vsBackBtn) {
         elements.vsBackBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -194,16 +197,27 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Custom Map Events handled by CustomMapsBrowser class ---
-    // Listen for custom leaderboard requests
-    window.addEventListener('openCustomLeaderboard', (e) => {
-        leaderboardOrigin = e.detail.origin;
-        leaderboardController.show('custom_map');
-        leaderboardController.loadLeaderboard('custom_map', e.detail.scores, e.detail.title);
-    });
+    // Instantiate Custom Maps Browser (handles listeners and logic)
+    const customMapsBrowser = new CustomMapsBrowser(
+        { customBrowserView: document.getElementById('custom-browser-view') },
+        ui,
+        game,
+        customCreator,
+        leaderboardController,
+        {
+            onInteraction: handleFirstInteraction,
+            onLeaderboardOpen: () => { leaderboardOrigin = 'custom-browser'; }
+        }
+    );
+
+    // removed loadCustomMaps()
+    // removed renderCustomMapsList()
+    // removed startCustomGame()
+
 
     // Tap to Start
     elements.startMenu.addEventListener('click', (e) => {
+        // Prevent starting if clicking on difficulty buttons or VS button
         if (e.target.closest('.difficulty-selector') || e.target.closest('.vs-btn')) return;
         
         handleFirstInteraction();
@@ -213,14 +227,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Game Over Menu Tap to Restart
     elements.gameOverMenu.addEventListener('click', (e) => {
+        // Don't trigger if clicking buttons or interactions inside
         if (e.target.closest('button') || e.target.closest('.difficulty-selector')) return;
+        
+        // Prevent accidental restart if text is not visible yet
         if (elements.tapToRestart && elements.tapToRestart.style.opacity === '0') return;
 
         ui.clearTimeouts();
         game.reset();
         
         if (game.mode === 'vs') {
-             ui.showStartMenu(); 
+             ui.showStartMenu(); // VS goes back to menu to find new opponent
         } else {
             ui.showGameScreen();
             game.start(currentDifficulty);
@@ -232,9 +249,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (game.mode === 'zen' || game.mode === 'vs') {
             vsManager.cancelSeeking();
         }
+        // Exit custom mode if active
         if (game.mode === 'custom') {
             game.setMode('standard');
-            ui.updateLives(null);
+            ui.updateLives(null); // Hide lives
         }
         
         ui.clearTimeouts();
@@ -243,11 +261,11 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.showStartMenu();
     });
 
-    // Replay button
+    // Replay button (from Game Over)
     elements.replayBtn.addEventListener('click', async () => {
         handleFirstInteraction();
         replayOrigin = 'gameover';
-        stopMusicForReplay(); 
+        stopMusicForReplay(); // Instant stop to prevent overlap
         ui.showReplayContainer();
         
         if (!game.replayConfig.currentUser) {
@@ -255,6 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const currentUser = await window.websim.getCurrentUser();
                 game.replayConfig.currentUser = currentUser;
             } catch (error) {
+                console.error("Could not get current user for replay:", error);
                 game.replayConfig.currentUser = null;
             }
         }
@@ -274,11 +293,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Submit score button
     elements.submitScoreBtn.addEventListener('click', async () => {
         ui.setSubmitButtonState('disabled', 'Submitting...');
+        
         const data = game.lastGameData;
 
-        // Custom Map Score Submission
+        // Handle Custom Map Score Submission
         if (data.mode === 'custom' && game.customMapData) {
             try {
+                // Upload replay for custom map first
                 let replayUrl = null;
                 if (data.replayData) {
                      const replayJson = JSON.stringify(data.replayData);
@@ -295,6 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 ui.setSubmitButtonState('disabled', 'Submitted!');
             } catch (e) {
+                console.error(e);
                 ui.setSubmitButtonState('disabled', 'Error!');
                 setTimeout(() => { ui.setSubmitButtonState('enabled', 'Submit Score'); }, 2000);
             }
@@ -314,11 +336,11 @@ document.addEventListener('DOMContentLoaded', () => {
         );
     });
 
-    // Audio Toggle
-    let audioState = 0; 
+    // Audio Toggle (3 States: All On -> Music Muted -> All Muted -> ...)
+    let audioState = 0; // 0: On, 1: Music Off, 2: All Off
     elements.musicToggleBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        handleFirstInteraction();
+        e.stopPropagation(); // Don't trigger game tap
+        handleFirstInteraction(); // Ensure audio context is ready
         
         audioState = (audioState + 1) % 3;
         
@@ -326,36 +348,44 @@ document.addEventListener('DOMContentLoaded', () => {
         const musicOffIcon = elements.musicToggleBtn.querySelector('.music-off');
         const allOffIcon = elements.musicToggleBtn.querySelector('.audio-off');
         
+        // Update Audio Logic
         if (audioState === 0) {
+            // All On
             setMusicMuted(false);
             setSFXMuted(false);
+            
             onIcon.classList.remove('hidden');
             musicOffIcon.classList.add('hidden');
             allOffIcon.classList.add('hidden');
-            elements.musicToggleBtn.style.color = '';
+            elements.musicToggleBtn.style.color = ''; // Reset color
         } else if (audioState === 1) {
+            // Music Muted (SFX On)
             setMusicMuted(true);
             setSFXMuted(false);
+
             onIcon.classList.add('hidden');
             musicOffIcon.classList.remove('hidden');
             allOffIcon.classList.add('hidden');
-            elements.musicToggleBtn.style.color = 'var(--fail-color)';
+            elements.musicToggleBtn.style.color = 'var(--fail-color)'; // Red indicator
         } else {
+            // All Muted
             setMusicMuted(true);
             setSFXMuted(true);
+
             onIcon.classList.add('hidden');
             musicOffIcon.classList.add('hidden');
             allOffIcon.classList.remove('hidden');
-            elements.musicToggleBtn.style.color = '';
+            elements.musicToggleBtn.style.color = ''; // Reset color
         }
     });
 
-    // Leaderboard button
+    // Leaderboard button (Game Over)
     elements.leaderboardBtn.addEventListener('click', () => {
         leaderboardOrigin = 'gameover';
         leaderboardController.show('easy');
     });
 
+    // Leaderboard button (Start Menu)
     const startLeaderboardBtn = document.getElementById('start-leaderboard-btn');
     if (startLeaderboardBtn) {
         startLeaderboardBtn.addEventListener('click', (e) => {
@@ -365,7 +395,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // About Button
+    // About Button (Start Menu)
     if (elements.aboutBtn) {
         elements.aboutBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -384,17 +414,20 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.hideLeaderboardView(leaderboardOrigin);
         leaderboardController.close();
         if (leaderboardOrigin === 'custom-browser') {
-            document.getElementById('custom-browser-view').classList.remove('hidden');
+            customMapsBrowser.show();
         }
     });
 
     // Responsive UI Scaling
     const updateUIScale = () => {
         const minDim = Math.min(window.innerWidth, window.innerHeight);
+        // Base scale on a reference dimension of 450px
+        // Allow it to scale down to 0.6 (small inline) and up to 1.2 (desktop)
         const scale = Math.min(Math.max(minDim / 450, 0.6), 1.2);
         document.documentElement.style.setProperty('--ui-scale', scale);
     };
 
+    // Window resize
     window.addEventListener('resize', () => {
         game.resizeCanvas();
         updateUIScale();
@@ -408,6 +441,3 @@ document.addEventListener('DOMContentLoaded', () => {
     game.setDifficulty(currentDifficulty);
     migrateUserScores();
 });
-
-// removed custom maps browser inline logic - moved to custom-maps-browser.js
-```Summary: Refactored `script.js`, `ui.js`, and `leaderboard-controller.js` by breaking them down into modular controllers. Created `ui-hud-controller.js`, `ui-vs-controller.js`, `leaderboard-detail-controller.js`, and `custom-maps-browser.js` to handle specific logic for HUD, VS UI, Leaderboard Details, and Custom Map browsing respectively. Updates the main files to delegate to these new classes, reducing file size and improving maintainability.
