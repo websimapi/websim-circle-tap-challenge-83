@@ -101,19 +101,22 @@ export class GameRenderer {
             this.ctx.lineCap = 'round';
             const colorStr = currentColorHsl.toString();
             this.ctx.strokeStyle = colorStr;
-            this.ctx.shadowBlur = 0; // Ensure shadow blur is off for performance
+            this.ctx.shadowBlur = 0; 
 
-            // Optimized Gradient Glow using 5 layers
-            // Draws from widest/faintest to narrowest/brightest to build a smooth gradient
-            const layers = 5;
-            const maxExpansion = 2.5 + (pulseAmount * 3.5);
+            // High-fidelity Gradient Glow using more layers for smoothness
+            const layers = 15;
+            const maxExpansion = 2.0 + (pulseAmount * 3.0);
             
             for (let i = 0; i < layers; i++) {
                 const ratio = i / (layers - 1); // 0 (wide) to 1 (narrow)
-                // Non-linear falloff for width
-                const w = this.lineWidth * (1 + (maxExpansion * (1 - ratio)));
-                // Opacity curve: faint outer, stronger inner
-                const alpha = (0.05 + (0.15 * ratio)) * (0.6 + 0.4 * pulseAmount);
+                
+                // Non-linear width distribution for better core definition
+                const expansion = maxExpansion * (1 - Math.pow(ratio, 0.5));
+                const w = this.lineWidth * (1 + expansion);
+                
+                // Smooth opacity curve
+                // Low base alpha to prevent blowing out to white with additive blending
+                const alpha = (0.03 + (0.08 * Math.pow(ratio, 2))) * (0.6 + 0.4 * pulseAmount);
                 
                 this.ctx.lineWidth = w;
                 this.ctx.globalAlpha = alpha;
@@ -205,26 +208,16 @@ export class GameRenderer {
         
         // Smooth the pulse
         this.smoothedPulse += (targetPulse - this.smoothedPulse) * 0.3;
-        
-        // Draw Background Plate (Shadow/Glow)
-        // This replaces the CSS box-shadow and ensures contrast against stars
-        this.ctx.save();
-        this.ctx.translate(this.centerX, this.centerY);
-        
-        // Draw Visualizer (it handles its own translation now for flexibility in gradients, wait, actually I moved translate into drawVisualizer for safety)
-        this.ctx.restore(); // Ensure we are clean before visualizer called
-        
-        this.drawVisualizer(this.smoothedPulse, currentColorHsl);
 
         // Store pulse for replay
         if(replayFrame) {
             replayFrame.pulseAmount = this.smoothedPulse;
         }
 
+        // --- LAYER 1: Shadow Backing (Draw BEFORE Visualizer) ---
         this.ctx.save();
         this.ctx.translate(this.centerX, this.centerY);
 
-        // Draw Dark Background for contrast
         if (!this.customPoints) {
             // Standard Mode: Ring Shadow
             const shadowRadius = this.radius * 1.05;
@@ -234,7 +227,7 @@ export class GameRenderer {
             const startRatio = this.radius / (shadowRadius + 50);
             // Soften the inner edge
             bgGradient.addColorStop(Math.max(0, startRatio - 0.15), 'rgba(0,0,0,0)'); 
-            bgGradient.addColorStop(startRatio, 'rgba(0,0,0,0.6)'); // Reduced opacity for smoother look
+            bgGradient.addColorStop(startRatio, 'rgba(0,0,0,0.6)'); 
             bgGradient.addColorStop(1, 'rgba(0,0,0,0)');
             
             this.ctx.fillStyle = bgGradient;
@@ -247,11 +240,19 @@ export class GameRenderer {
             if (this.customPath) {
                 this.ctx.lineJoin = 'round';
                 this.ctx.lineCap = 'round';
-                this.ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-                this.ctx.lineWidth = this.lineWidth * 5; // Wide backing
+                this.ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+                this.ctx.lineWidth = this.lineWidth * 4.5; // Wide backing
                 this.ctx.stroke(this.customPath);
             }
         }
+        this.ctx.restore();
+        
+        // --- LAYER 2: Visualizer (Additive Glow) ---
+        this.drawVisualizer(this.smoothedPulse, currentColorHsl);
+
+        // --- LAYER 3: Track & Game Elements ---
+        this.ctx.save();
+        this.ctx.translate(this.centerX, this.centerY);
 
         if (this.customPoints) {
             this.drawCustomPath(state);
