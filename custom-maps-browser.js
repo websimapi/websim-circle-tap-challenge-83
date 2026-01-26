@@ -62,6 +62,11 @@ export class CustomMapsBrowser {
 
     show() {
         this.elements.customBrowserView.classList.remove('hidden');
+        // Sync sort state with UI
+        const sortSelect = document.getElementById('browser-sort-select');
+        if (sortSelect) {
+            this.currentSort = sortSelect.value;
+        }
         this.loadMaps();
     }
 

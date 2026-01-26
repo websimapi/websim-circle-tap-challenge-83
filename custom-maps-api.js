@@ -59,21 +59,25 @@ export async function getCustomMaps(filter = 'browse', sort = 'recent') {
     // 3. Attach Stats (Play Count)
     resultMaps.forEach(map => {
         const mapPlays = allScores.filter(s => s.mapId === map.id).length;
-        map.playCount = mapPlays;
+        map.playCount = mapPlays || 0;
         
         // Ensure legacy maps have a date if missing
         if (!map.created_at) map.created_at = new Date(0).toISOString();
     });
 
     // 4. Sort
+    const getTime = (d) => new Date(d || 0).getTime();
+
     if (sort === 'played') {
         resultMaps.sort((a, b) => {
-            if (b.playCount !== a.playCount) return b.playCount - a.playCount;
-            return new Date(b.created_at) - new Date(a.created_at);
+            const playsA = a.playCount || 0;
+            const playsB = b.playCount || 0;
+            if (playsB !== playsA) return playsB - playsA;
+            return getTime(b.created_at) - getTime(a.created_at);
         });
     } else {
         // Recent
-        resultMaps.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        resultMaps.sort((a, b) => getTime(b.created_at) - getTime(a.created_at));
     }
 
     return resultMaps;
