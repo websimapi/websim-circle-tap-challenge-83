@@ -141,12 +141,13 @@ export class GameRenderer {
             this.ctx.fill();
 
             // Inner Glow - deeper gradient towards center transparent
-            const innerRadiusMin = Math.max(0, this.radius * (1 - pulseAmount * 0.6));
+            // Pushed further out to keep center clearer (1 - 0.4 instead of 0.6)
+            const innerRadiusMin = Math.max(0, this.radius * (1 - pulseAmount * 0.4));
             const innerGradient = this.ctx.createRadialGradient(0, 0, innerRadiusMin, 0, 0, this.radius);
             
             pulseColor.opacity = 0;
             innerGradient.addColorStop(0, pulseColor.toString());
-            pulseColor.opacity = pulseAmount * 0.1;
+            pulseColor.opacity = pulseAmount * 0.05; // Reduced opacity mid-point
             innerGradient.addColorStop(0.5, pulseColor.toString());
             pulseColor.opacity = pulseAmount * 0.4;
             innerGradient.addColorStop(1, pulseColor.toString());
@@ -163,6 +164,7 @@ export class GameRenderer {
             
             pulseColor.opacity = 0;
             bloomGradient.addColorStop(0, pulseColor.toString()); // Transparent center
+            bloomGradient.addColorStop(0.4, pulseColor.toString()); // Keep center clearer for longer
             pulseColor.opacity = pulseAmount * 0.15;
             bloomGradient.addColorStop(0.7, pulseColor.toString()); // Peak near track
             pulseColor.opacity = 0;

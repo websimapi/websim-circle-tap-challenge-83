@@ -87,7 +87,7 @@ const Visualizer = ({ pulseAmount, targetColor, radius, lineWidth, customPath })
   const outerRadius = radius + lineWidth / 2;
   const innerRadius = radius - lineWidth / 2;
   const pulseExtentOuter = outerRadius * (1 + pulseAmount * 0.8);
-  const pulseExtentInner = Math.max(0, innerRadius * (1 - pulseAmount * 0.6));
+  const pulseExtentInner = Math.max(0, innerRadius * (1 - pulseAmount * 0.4));
   const gradOuterId = `grad-outer-${Math.random()}`;
   const gradInnerId = `grad-inner-${Math.random()}`;
   const glowColor = getTransparentColor(pulseAmount * 0.5);
@@ -122,14 +122,19 @@ const Visualizer = ({ pulseAmount, targetColor, radius, lineWidth, customPath })
           lineNumber: 90,
           columnNumber: 22
         }),
-        /* @__PURE__ */ jsxDEV("stop", { offset: `${pulseExtentInner / innerRadius + 0.5}`, stopColor: getTransparentColor(pulseAmount * 0.1) }, void 0, false, {
+        /* @__PURE__ */ jsxDEV("stop", { offset: `${pulseExtentInner / innerRadius + 0.2}`, stopColor: "rgba(0,0,0,0)" }, void 0, false, {
           fileName: "<stdin>",
           lineNumber: 91,
           columnNumber: 22
         }),
-        /* @__PURE__ */ jsxDEV("stop", { offset: "1", stopColor: glowInnerColor }, void 0, false, {
+        /* @__PURE__ */ jsxDEV("stop", { offset: `${pulseExtentInner / innerRadius + 0.5}`, stopColor: getTransparentColor(pulseAmount * 0.05) }, void 0, false, {
           fileName: "<stdin>",
           lineNumber: 92,
+          columnNumber: 22
+        }),
+        /* @__PURE__ */ jsxDEV("stop", { offset: "1", stopColor: glowInnerColor }, void 0, false, {
+          fileName: "<stdin>",
+          lineNumber: 93,
           columnNumber: 22
         })
       ] }, void 0, true, {
@@ -144,12 +149,12 @@ const Visualizer = ({ pulseAmount, targetColor, radius, lineWidth, customPath })
     }),
     /* @__PURE__ */ jsxDEV("circle", { cx: "0", cy: "0", r: pulseExtentOuter, fill: `url(#${gradOuterId})` }, void 0, false, {
       fileName: "<stdin>",
-      lineNumber: 97,
+      lineNumber: 98,
       columnNumber: 13
     }),
     /* @__PURE__ */ jsxDEV("circle", { cx: "0", cy: "0", r: innerRadius, fill: `url(#${gradInnerId})` }, void 0, false, {
       fileName: "<stdin>",
-      lineNumber: 100,
+      lineNumber: 101,
       columnNumber: 13
     })
   ] }, void 0, true, {
@@ -206,34 +211,34 @@ const GameCanvas = ({ frameData, config }) => {
     return /* @__PURE__ */ jsxDEV("svg", { viewBox: "-75 -75 150 150", style: { width: "100%", height: "100%" }, children: [
       /* @__PURE__ */ jsxDEV(Visualizer, { pulseAmount, targetColor, radius, lineWidth, customPath: trackPath }, void 0, false, {
         fileName: "<stdin>",
-        lineNumber: 173,
+        lineNumber: 174,
         columnNumber: 18
       }),
       /* @__PURE__ */ jsxDEV("path", { d: trackPath, stroke: colors.secondary, strokeWidth: lineWidth, fill: "none", strokeLinecap: "round", strokeLinejoin: "round" }, void 0, false, {
         fileName: "<stdin>",
-        lineNumber: 176,
+        lineNumber: 177,
         columnNumber: 18
       }),
       targetPath && /* @__PURE__ */ jsxDEV("path", { d: targetPath, stroke: targetColor || colors.success, strokeWidth: lineWidth * 0.95, fill: "none", strokeLinecap: "round", strokeLinejoin: "round" }, void 0, false, {
         fileName: "<stdin>",
-        lineNumber: 180,
+        lineNumber: 181,
         columnNumber: 22
       }),
       /* @__PURE__ */ jsxDEV("circle", { cx: cursorP.x, cy: cursorP.y, r: lineWidth / 2, fill: colors.fail }, void 0, false, {
         fileName: "<stdin>",
-        lineNumber: 184,
+        lineNumber: 185,
         columnNumber: 18
       })
     ] }, void 0, true, {
       fileName: "<stdin>",
-      lineNumber: 171,
+      lineNumber: 172,
       columnNumber: 13
     });
   }
   return /* @__PURE__ */ jsxDEV("svg", { viewBox: "-75 -75 150 150", style: { width: "100%", height: "100%" }, children: [
     /* @__PURE__ */ jsxDEV(Visualizer, { pulseAmount, targetColor, radius, lineWidth }, void 0, false, {
       fileName: "<stdin>",
-      lineNumber: 192,
+      lineNumber: 193,
       columnNumber: 13
     }),
     /* @__PURE__ */ jsxDEV(
@@ -251,7 +256,7 @@ const GameCanvas = ({ frameData, config }) => {
       false,
       {
         fileName: "<stdin>",
-        lineNumber: 194,
+        lineNumber: 195,
         columnNumber: 13
       }
     ),
@@ -268,7 +273,7 @@ const GameCanvas = ({ frameData, config }) => {
       false,
       {
         fileName: "<stdin>",
-        lineNumber: 203,
+        lineNumber: 204,
         columnNumber: 17
       }
     ),
@@ -287,17 +292,17 @@ const GameCanvas = ({ frameData, config }) => {
       false,
       {
         fileName: "<stdin>",
-        lineNumber: 213,
+        lineNumber: 214,
         columnNumber: 17
       }
     ) }, void 0, false, {
       fileName: "<stdin>",
-      lineNumber: 212,
+      lineNumber: 213,
       columnNumber: 13
     })
   ] }, void 0, true, {
     fileName: "<stdin>",
-    lineNumber: 191,
+    lineNumber: 192,
     columnNumber: 9
   });
 };
