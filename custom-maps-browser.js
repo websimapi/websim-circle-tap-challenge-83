@@ -1,4 +1,6 @@
 import { getCustomMaps, deleteCustomMap, getCustomMapLeaderboard } from './custom-maps-api.js';
+import { renderLeaderboardPagination } from './leaderboard-render.js';
+import { LeaderboardPagination } from './leaderboard-pagination.js';
 
 export class CustomMapsBrowser {
     constructor(elements, ui, game, customLevelCreator, leaderboardController, callbacks) {
@@ -12,6 +14,8 @@ export class CustomMapsBrowser {
         this.currentTab = 'browse';
         this.currentSort = 'recent';
         this.maps = [];
+        this.pagination = new LeaderboardPagination();
+        this.pagination.setItemsPerPage(4); // Show 4 maps per page
         
         this._bindEvents();
     }
@@ -29,11 +33,28 @@ export class CustomMapsBrowser {
         });
 
         // Sorting
-        const sortSelect = document.getElementById('browser-sort-select');
-        if (sortSelect) {
-            sortSelect.addEventListener('change', (e) => {
-                this.currentSort = e.target.value;
+        const sortBtns = this.elements.customBrowserView.querySelectorAll('.sort-btn');
+        sortBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                sortBtns.forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                this.currentSort = e.target.dataset.sort;
                 this.loadMaps();
+            });
+        });
+
+        // Pagination
+        const paginationContainer = document.getElementById('custom-maps-pagination');
+        if (paginationContainer) {
+            paginationContainer.addEventListener('click', (e) => {
+                const action = e.target.dataset.action;
+                if(action) {
+                    const newPage = this.pagination.calculateNewPage(action);
+                    if(newPage !== this.pagination.currentPage) {
+                        this.pagination.setPage(newPage);
+                        this.renderList();
+                    }
+                }
             });
         }
 
@@ -62,11 +83,6 @@ export class CustomMapsBrowser {
 
     show() {
         this.elements.customBrowserView.classList.remove('hidden');
-        // Sync sort state with UI
-        const sortSelect = document.getElementById('browser-sort-select');
-        if (sortSelect) {
-            this.currentSort = sortSelect.value;
-        }
         this.loadMaps();
     }
 
@@ -76,9 +92,15 @@ export class CustomMapsBrowser {
 
     async loadMaps() {
         const list = document.getElementById('custom-maps-list');
+        const paginationEl = document.getElementById('custom-maps-pagination');
+        
         list.innerHTML = '<p style="text-align:center; padding:20px;">Loading maps...</p>';
+        if (paginationEl) paginationEl.classList.add('hidden');
+
         try {
             this.maps = await getCustomMaps(this.currentTab, this.currentSort);
+            this.pagination.reset();
+            this.pagination.update(this.maps.length);
             this.renderList();
         } catch(e) {
             console.error(e);
@@ -103,14 +125,20 @@ export class CustomMapsBrowser {
 
     renderList() {
         const list = document.getElementById('custom-maps-list');
+        const paginationEl = document.getElementById('custom-maps-pagination');
         const isMine = this.currentTab === 'mine';
         
         if (this.maps.length === 0) {
             list.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">No maps found.</p>';
+            if (paginationEl) paginationEl.classList.add('hidden');
             return;
         }
 
-        list.innerHTML = this.maps.map(map => {
+        const startIndex = (this.pagination.currentPage - 1) * this.pagination.itemsPerPage;
+        const endIndex = startIndex + this.pagination.itemsPerPage;
+        const visibleMaps = this.maps.slice(startIndex, endIndex);
+
+        list.innerHTML = visibleMaps.map(map => {
             const svgPreview = this._generatePreviewSvg(map.points);
             const playCount = map.playCount || 0;
             
@@ -145,6 +173,16 @@ export class CustomMapsBrowser {
                 </div>
             </div>
         `}).join('');
+
+        if (paginationEl) {
+            this.pagination.update(this.maps.length);
+            if (this.pagination.totalPages > 1) {
+                paginationEl.innerHTML = renderLeaderboardPagination(this.pagination.totalPages, this.pagination.currentPage);
+                paginationEl.classList.remove('hidden');
+            } else {
+                paginationEl.classList.add('hidden');
+            }
+        }
 
         this._bindListEvents(list, isMine);
     }

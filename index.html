@@ -67,16 +67,17 @@
             </div>
             
             <div class="browser-controls">
-                <label>Sort by:</label>
-                <select id="browser-sort-select">
-                    <option value="recent">Most Recent</option>
-                    <option value="played">Most Played</option>
-                </select>
+                <div class="sort-buttons">
+                    <button class="sort-btn active" data-sort="recent">Recent</button>
+                    <button class="sort-btn" data-sort="played">Most Played</button>
+                </div>
             </div>
 
             <div id="custom-maps-list" class="list-container">
                 <!-- Populated dynamically -->
             </div>
+            
+            <div id="custom-maps-pagination" class="pagination-container hidden"></div>
 
             <div class="browser-footer">
                 <button id="create-new-map-btn" class="menu-btn">
