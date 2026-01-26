@@ -92,67 +92,86 @@ export class GameRenderer {
         // Use additive blending for a glowing effect
         this.ctx.save();
         this.ctx.globalCompositeOperation = 'lighter';
-        this.ctx.translate(this.centerX, this.centerY);
+        this.ctx.translate(this.centerX, this.centerY); // Translate to center of screen
 
-        const color = currentColorHsl.copy();
-        const r = color.r;
-        const g = color.g;
-        const b = color.b;
-
+        const pulseColor = currentColorHsl.copy();
+        
         if (this.customPoints && this.customPath) {
             this.ctx.lineJoin = 'round';
             this.ctx.lineCap = 'round';
-            
-            // Soft Gradient Glow using layered strokes
-            // We draw from widest/faintest to narrowest/brightest to simulate a gradient
-            
-            // 1. Wide Ambient Aura (Very transparent, very wide)
-            this.ctx.lineWidth = this.lineWidth * (4 + pulseAmount * 6);
-            this.ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${0.05 * pulseAmount})`;
-            this.ctx.stroke(this.customPath);
+            const colorStr = currentColorHsl.toString();
+            this.ctx.strokeStyle = colorStr;
+            this.ctx.shadowBlur = 0; // Ensure shadow blur is off for performance
 
-            // 2. Medium Glow
-            this.ctx.lineWidth = this.lineWidth * (2 + pulseAmount * 3);
-            this.ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${0.15 * pulseAmount})`;
-            this.ctx.stroke(this.customPath);
-
-            // 3. Inner Glow
-            this.ctx.lineWidth = this.lineWidth * (1 + pulseAmount);
-            this.ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${0.4 * pulseAmount})`;
-            this.ctx.stroke(this.customPath);
+            // Optimized Gradient Glow using 5 layers
+            // Draws from widest/faintest to narrowest/brightest to build a smooth gradient
+            const layers = 5;
+            const maxExpansion = 2.5 + (pulseAmount * 3.5);
             
-            // 4. Core Brightness (White-hot center tint)
-            this.ctx.lineWidth = this.lineWidth * 0.8;
-            this.ctx.strokeStyle = `rgba(${Math.min(255, r+50)}, ${Math.min(255, g+50)}, ${Math.min(255, b+50)}, ${0.2 * pulseAmount})`;
-            this.ctx.stroke(this.customPath);
+            for (let i = 0; i < layers; i++) {
+                const ratio = i / (layers - 1); // 0 (wide) to 1 (narrow)
+                // Non-linear falloff for width
+                const w = this.lineWidth * (1 + (maxExpansion * (1 - ratio)));
+                // Opacity curve: faint outer, stronger inner
+                const alpha = (0.05 + (0.15 * ratio)) * (0.6 + 0.4 * pulseAmount);
+                
+                this.ctx.lineWidth = w;
+                this.ctx.globalAlpha = alpha;
+                this.ctx.stroke(this.customPath);
+            }
 
+            this.ctx.globalAlpha = 1;
         } else {
-            // Standard Circular Mode
-            // Single clean radial gradient that peaks at the track and fades out both ways
-            
-            const maxRadius = this.radius * (1.5 + pulseAmount * 0.5); 
-            const grad = this.ctx.createRadialGradient(0, 0, 0, 0, 0, maxRadius);
-            
-            // Calculate stops relative to maxRadius
-            const trackRatio = this.radius / maxRadius;
-            const spread = 0.15 + (0.1 * pulseAmount); // How wide the glow is
-            
-            const cStr = `${r}, ${g}, ${b}`;
-            
-            // Ensure center is absolutely transparent
-            grad.addColorStop(0, `rgba(${cStr}, 0)`);
-            grad.addColorStop(Math.max(0, trackRatio - spread), `rgba(${cStr}, 0)`);
-            
-            // Peak at track
-            grad.addColorStop(trackRatio, `rgba(${cStr}, ${0.6 * pulseAmount})`);
-            
-            // Fade out
-            grad.addColorStop(Math.min(1, trackRatio + spread), `rgba(${cStr}, 0)`);
-            grad.addColorStop(1, `rgba(${cStr}, 0)`);
+            // Standard Mode: Radial Pulse Waves
+            // We draw 2 main gradient pulses: one expanding out, one internal
 
-            this.ctx.fillStyle = grad;
+            // Outer Glow - smoother quadratic falloff
+            const outerRadiusMax = this.radius * (1 + pulseAmount * 0.8);
+            const outerGradient = this.ctx.createRadialGradient(0, 0, this.radius, 0, 0, outerRadiusMax);
+            
+            pulseColor.opacity = pulseAmount * 0.5;
+            outerGradient.addColorStop(0, pulseColor.toString());
+            pulseColor.opacity = pulseAmount * 0.2;
+            outerGradient.addColorStop(0.4, pulseColor.toString());
+            pulseColor.opacity = 0;
+            outerGradient.addColorStop(1, pulseColor.toString());
+
+            this.ctx.fillStyle = outerGradient;
             this.ctx.beginPath();
-            this.ctx.arc(0, 0, maxRadius, 0, Math.PI*2);
+            this.ctx.arc(0, 0, outerRadiusMax, 0, Math.PI*2);
+            this.ctx.fill();
+
+            // Inner Glow - deeper gradient towards center transparent
+            const innerRadiusMin = Math.max(0, this.radius * (1 - pulseAmount * 0.6));
+            const innerGradient = this.ctx.createRadialGradient(0, 0, innerRadiusMin, 0, 0, this.radius);
+            
+            pulseColor.opacity = 0;
+            innerGradient.addColorStop(0, pulseColor.toString());
+            pulseColor.opacity = pulseAmount * 0.1;
+            innerGradient.addColorStop(0.5, pulseColor.toString());
+            pulseColor.opacity = pulseAmount * 0.4;
+            innerGradient.addColorStop(1, pulseColor.toString());
+
+            this.ctx.fillStyle = innerGradient;
+            this.ctx.beginPath();
+            this.ctx.arc(0, 0, this.radius, 0, Math.PI*2);
+            this.ctx.fill();
+
+            // Core Bloom - Subtle ambient light, ensuring it fades to transparent at center
+            // Using a large radial gradient that covers the whole area but fades out properly
+            const bloomRadius = this.radius * 1.5;
+            const bloomGradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, bloomRadius);
+            
+            pulseColor.opacity = 0;
+            bloomGradient.addColorStop(0, pulseColor.toString()); // Transparent center
+            pulseColor.opacity = pulseAmount * 0.15;
+            bloomGradient.addColorStop(0.7, pulseColor.toString()); // Peak near track
+            pulseColor.opacity = 0;
+            bloomGradient.addColorStop(1, pulseColor.toString());
+            
+            this.ctx.fillStyle = bloomGradient;
+            this.ctx.beginPath();
+            this.ctx.arc(0, 0, bloomRadius, 0, Math.PI*2);
             this.ctx.fill();
         }
 
@@ -205,26 +224,33 @@ export class GameRenderer {
         this.ctx.save();
         this.ctx.translate(this.centerX, this.centerY);
 
-        // Draw Dark Background for contrast (simulates a shadow behind the track)
+        // Draw Dark Background for contrast
         if (!this.customPoints) {
-            const outerR = this.radius + 60;
-            const bgGradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, outerR);
-            
-            const trackRatio = this.radius / outerR;
-            // Strict transparent center
+            // Standard Mode: Ring Shadow
+            const shadowRadius = this.radius * 1.05;
+            const bgGradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, shadowRadius + 50);
             bgGradient.addColorStop(0, 'rgba(0,0,0,0)'); 
-            bgGradient.addColorStop(Math.max(0, trackRatio - 0.2), 'rgba(0,0,0,0)'); 
             
-            // Dark ring
-            bgGradient.addColorStop(trackRatio, 'rgba(0,0,0,0.6)'); 
-            
-            // Fade out
+            const startRatio = this.radius / (shadowRadius + 50);
+            // Soften the inner edge
+            bgGradient.addColorStop(Math.max(0, startRatio - 0.15), 'rgba(0,0,0,0)'); 
+            bgGradient.addColorStop(startRatio, 'rgba(0,0,0,0.6)'); // Reduced opacity for smoother look
             bgGradient.addColorStop(1, 'rgba(0,0,0,0)');
             
             this.ctx.fillStyle = bgGradient;
             this.ctx.beginPath();
-            this.ctx.arc(0, 0, outerR, 0, Math.PI*2);
+            this.ctx.arc(0, 0, shadowRadius + 50, 0, Math.PI*2);
             this.ctx.fill();
+        } else {
+            // Custom Mode: Track Shadow Backing
+            // Draws a thick dark stroke behind the track to separate it from the stars/glow
+            if (this.customPath) {
+                this.ctx.lineJoin = 'round';
+                this.ctx.lineCap = 'round';
+                this.ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+                this.ctx.lineWidth = this.lineWidth * 5; // Wide backing
+                this.ctx.stroke(this.customPath);
+            }
         }
 
         if (this.customPoints) {
