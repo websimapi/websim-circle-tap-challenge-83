@@ -7,7 +7,8 @@ import { LeaderboardController } from './leaderboard-controller.js';
 import { InputController } from './input-controller.js';
 import { VSManager } from './vs-manager.js';
 import { CustomLevelCreator } from './custom-level-creator.js';
-import { getCustomMaps, deleteCustomMap, saveCustomMapScore, getCustomMapLeaderboard } from './custom-maps-api.js';
+import { saveCustomMapScore } from './custom-maps-api.js';
+import { CustomMapsBrowser } from './custom-maps-browser.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('game-canvas');
@@ -20,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     
-    // UI Elements
+    // UI Elements map
     const elements = {
         scoreDisplay: document.getElementById('score-display'),
         scoreEl: document.getElementById('score'),
@@ -91,18 +92,16 @@ document.addEventListener('DOMContentLoaded', () => {
         onInteraction: handleFirstInteraction
     });
 
+    const customBrowser = new CustomMapsBrowser(elements, ui, game, customCreator, leaderboardController, handleFirstInteraction);
+
     const inputController = new InputController(game, handleFirstInteraction);
     inputController.init();
-
-    // removed leaderboard logic, state variables and handlers (moved to LeaderboardController)
-    // removed tap and spacebar handlers (moved to InputController)
 
     // Set up game callbacks
     game.onScoreUpdate = (score) => ui.updateScore(score);
     game.onLivesUpdate = (lives) => ui.updateLives(lives);
     game.onLevelUp = (level, isInitial) => {
         ui.updateLevel(level, isInitial);
-        // Sync level for drain logic handled in game loop
     };
     
     // Hook for VS/Custom health updates
@@ -126,30 +125,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // --- EVENT LISTENERS ---
+
     // Difficulty Selection
     document.querySelectorAll('.diff-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            e.stopPropagation(); // Prevent bubbling to start menu
-            handleFirstInteraction(); // Start audio on difficulty select
+            e.stopPropagation(); 
+            handleFirstInteraction(); 
             const difficulty = btn.dataset.difficulty;
             currentDifficulty = difficulty;
             ui.updateDifficulty(difficulty);
-            game.setDifficulty(difficulty); // Update visuals
+            game.setDifficulty(difficulty);
         });
     });
 
-    // VS Mode Button
+    // VS Mode Interactions
     if (elements.vsModeBtn) {
         elements.vsModeBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             handleFirstInteraction();
             vsManager.startSeeking();
             ui.showVSZenScreen();
-            game.start('easy'); // Start Zen mode logic internally set in vsManager
+            game.start('easy'); 
         });
     }
 
-    // VS Lobby Preview Click (Direct Challenge)
     const vsLobbyPreview = document.getElementById('vs-lobby-preview');
     if (vsLobbyPreview) {
         vsLobbyPreview.addEventListener('click', (e) => {
@@ -161,16 +161,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const success = vsManager.directChallenge(wrapper.dataset.clientId);
                 if (success) {
                     ui.showVSZenScreen();
-                    game.start('easy'); // Start game loop for visual feedback
+                    game.start('easy'); 
                 } else {
-                    // Show feedback without leaving menu
+                    // Feedback
                     const tts = document.getElementById('tap-to-start');
                     if (tts) {
                         const originalText = tts.innerText;
                         tts.innerText = "PLAYER BUSY";
                         tts.style.color = 'var(--fail-color)';
                         tts.classList.remove('blink');
-                        
                         setTimeout(() => {
                             tts.innerText = originalText;
                             tts.style.color = '';
@@ -182,7 +181,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // VS Back Button
     if (elements.vsBackBtn) {
         elements.vsBackBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -196,143 +194,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Custom Mode Button
-    const customModeBtn = document.getElementById('custom-mode-btn');
-    const customBrowserView = document.getElementById('custom-browser-view');
-    const closeBrowserBtn = document.getElementById('close-browser-btn');
-    const customMapsList = document.getElementById('custom-maps-list');
-    const tabBtns = document.querySelectorAll('.tab-btn');
-    let currentTab = 'browse';
-
-    if (customModeBtn) {
-        customModeBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            customBrowserView.classList.remove('hidden');
-            loadCustomMaps(currentTab);
-        });
-    }
-
-    if (closeBrowserBtn) {
-        closeBrowserBtn.addEventListener('click', () => {
-            customBrowserView.classList.add('hidden');
-        });
-    }
-
-    tabBtns.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            tabBtns.forEach(b => b.classList.remove('active'));
-            e.target.classList.add('active');
-            currentTab = e.target.dataset.tab;
-            loadCustomMaps(currentTab);
-        });
+    // --- Custom Map Events handled by CustomMapsBrowser class ---
+    // Listen for custom leaderboard requests
+    window.addEventListener('openCustomLeaderboard', (e) => {
+        leaderboardOrigin = e.detail.origin;
+        leaderboardController.show('custom_map');
+        leaderboardController.loadLeaderboard('custom_map', e.detail.scores, e.detail.title);
     });
-
-    // Custom Maps Browser Logic
-    async function loadCustomMaps(filter) {
-        customMapsList.innerHTML = '<p>Loading maps...</p>';
-        try {
-            const maps = await getCustomMaps(filter);
-            renderCustomMapsList(maps, filter === 'mine');
-        } catch(e) {
-            customMapsList.innerHTML = '<p>Error loading maps.</p>';
-        }
-    }
-
-    function renderCustomMapsList(maps, isMine) {
-        if (maps.length === 0) {
-            customMapsList.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">No maps found.</p>';
-            return;
-        }
-
-        customMapsList.innerHTML = maps.map(map => `
-            <div class="map-card">
-                <div class="map-info">
-                    <h3>${map.name}</h3>
-                    <div class="meta">
-                        <span>by ${map.creator_username}</span>
-                        <span>• ${new Date(map.created_at).toLocaleDateString()}</span>
-                    </div>
-                </div>
-                <div class="map-actions">
-                    <button class="play-map-btn" data-id="${map.id}">Play</button>
-                    <button class="menu-btn leaderboard-map-btn icon-only" data-id="${map.id}" title="Leaderboard">
-                         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h3v7H3v-7zm5-2h3v9H8v-9zm5-6h3v15h-3V5z"></path></svg>
-                    </button>
-                    ${isMine ? `
-                        <button class="edit-map-btn icon-only" data-id="${map.id}" title="Edit/Remix">✏️</button>
-                        <button class="delete-map-btn icon-only" data-id="${map.id}" title="Delete">🗑️</button>
-                    ` : ''}
-                </div>
-            </div>
-        `).join('');
-
-        // Bind events
-        customMapsList.querySelectorAll('.play-map-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                handleFirstInteraction(); // Ensure audio context starts
-                const mapId = e.target.dataset.id;
-                const map = maps.find(m => m.id === mapId);
-                startCustomGame(map);
-            });
-        });
-
-        customMapsList.querySelectorAll('.leaderboard-map-btn').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                const btnEl = e.target.closest('.leaderboard-map-btn');
-                const mapId = btnEl.dataset.id;
-                const map = maps.find(m => m.id === mapId);
-                
-                customBrowserView.classList.add('hidden');
-                
-                // Load Custom Leaderboard
-                const scores = await getCustomMapLeaderboard(mapId);
-                leaderboardOrigin = 'custom-browser';
-                leaderboardController.show('custom_map'); // Preps UI
-                leaderboardController.loadLeaderboard('custom_map', scores, `Leaderboard: ${map.name}`);
-            });
-        });
-
-        if (isMine) {
-            customMapsList.querySelectorAll('.delete-map-btn').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    const btnEl = e.target.closest('.delete-map-btn');
-                    const id = btnEl.dataset.id;
-                    if(confirm('Delete this map? This cannot be undone.')) {
-                        await deleteCustomMap(id);
-                        loadCustomMaps('mine');
-                    }
-                });
-            });
-
-            customMapsList.querySelectorAll('.edit-map-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const btnEl = e.target.closest('.edit-map-btn');
-                    const id = btnEl.dataset.id;
-                    const map = maps.find(m => m.id === id);
-                    customCreator.loadForEditing(map);
-                });
-            });
-        }
-    }
-
-    function startCustomGame(map) {
-        customBrowserView.classList.add('hidden');
-        game.setMode('custom', map);
-        game.start('easy'); 
-        ui.showGameScreen('custom', map);
-        ui.updateDifficulty('custom');
-    }
-
-    window.addEventListener('refreshCustomMaps', () => {
-        if (!customBrowserView.classList.contains('hidden')) {
-            loadCustomMaps(currentTab);
-        }
-    });
-
 
     // Tap to Start
     elements.startMenu.addEventListener('click', (e) => {
-        // Prevent starting if clicking on difficulty buttons or VS button
         if (e.target.closest('.difficulty-selector') || e.target.closest('.vs-btn')) return;
         
         handleFirstInteraction();
@@ -342,17 +213,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Game Over Menu Tap to Restart
     elements.gameOverMenu.addEventListener('click', (e) => {
-        // Don't trigger if clicking buttons or interactions inside
         if (e.target.closest('button') || e.target.closest('.difficulty-selector')) return;
-        
-        // Prevent accidental restart if text is not visible yet
         if (elements.tapToRestart && elements.tapToRestart.style.opacity === '0') return;
 
         ui.clearTimeouts();
         game.reset();
         
         if (game.mode === 'vs') {
-             ui.showStartMenu(); // VS goes back to menu to find new opponent
+             ui.showStartMenu(); 
         } else {
             ui.showGameScreen();
             game.start(currentDifficulty);
@@ -364,10 +232,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (game.mode === 'zen' || game.mode === 'vs') {
             vsManager.cancelSeeking();
         }
-        // Exit custom mode if active
         if (game.mode === 'custom') {
             game.setMode('standard');
-            ui.updateLives(null); // Hide lives
+            ui.updateLives(null);
         }
         
         ui.clearTimeouts();
@@ -376,11 +243,11 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.showStartMenu();
     });
 
-    // Replay button (from Game Over)
+    // Replay button
     elements.replayBtn.addEventListener('click', async () => {
         handleFirstInteraction();
         replayOrigin = 'gameover';
-        stopMusicForReplay(); // Instant stop to prevent overlap
+        stopMusicForReplay(); 
         ui.showReplayContainer();
         
         if (!game.replayConfig.currentUser) {
@@ -388,7 +255,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const currentUser = await window.websim.getCurrentUser();
                 game.replayConfig.currentUser = currentUser;
             } catch (error) {
-                console.error("Could not get current user for replay:", error);
                 game.replayConfig.currentUser = null;
             }
         }
@@ -408,13 +274,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Submit score button
     elements.submitScoreBtn.addEventListener('click', async () => {
         ui.setSubmitButtonState('disabled', 'Submitting...');
-        
         const data = game.lastGameData;
 
-        // Handle Custom Map Score Submission
+        // Custom Map Score Submission
         if (data.mode === 'custom' && game.customMapData) {
             try {
-                // Upload replay for custom map first
                 let replayUrl = null;
                 if (data.replayData) {
                      const replayJson = JSON.stringify(data.replayData);
@@ -431,7 +295,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 ui.setSubmitButtonState('disabled', 'Submitted!');
             } catch (e) {
-                console.error(e);
                 ui.setSubmitButtonState('disabled', 'Error!');
                 setTimeout(() => { ui.setSubmitButtonState('enabled', 'Submit Score'); }, 2000);
             }
@@ -451,11 +314,11 @@ document.addEventListener('DOMContentLoaded', () => {
         );
     });
 
-    // Audio Toggle (3 States: All On -> Music Muted -> All Muted -> ...)
-    let audioState = 0; // 0: On, 1: Music Off, 2: All Off
+    // Audio Toggle
+    let audioState = 0; 
     elements.musicToggleBtn.addEventListener('click', (e) => {
-        e.stopPropagation(); // Don't trigger game tap
-        handleFirstInteraction(); // Ensure audio context is ready
+        e.stopPropagation();
+        handleFirstInteraction();
         
         audioState = (audioState + 1) % 3;
         
@@ -463,44 +326,36 @@ document.addEventListener('DOMContentLoaded', () => {
         const musicOffIcon = elements.musicToggleBtn.querySelector('.music-off');
         const allOffIcon = elements.musicToggleBtn.querySelector('.audio-off');
         
-        // Update Audio Logic
         if (audioState === 0) {
-            // All On
             setMusicMuted(false);
             setSFXMuted(false);
-            
             onIcon.classList.remove('hidden');
             musicOffIcon.classList.add('hidden');
             allOffIcon.classList.add('hidden');
-            elements.musicToggleBtn.style.color = ''; // Reset color
+            elements.musicToggleBtn.style.color = '';
         } else if (audioState === 1) {
-            // Music Muted (SFX On)
             setMusicMuted(true);
             setSFXMuted(false);
-
             onIcon.classList.add('hidden');
             musicOffIcon.classList.remove('hidden');
             allOffIcon.classList.add('hidden');
-            elements.musicToggleBtn.style.color = 'var(--fail-color)'; // Red indicator
+            elements.musicToggleBtn.style.color = 'var(--fail-color)';
         } else {
-            // All Muted
             setMusicMuted(true);
             setSFXMuted(true);
-
             onIcon.classList.add('hidden');
             musicOffIcon.classList.add('hidden');
             allOffIcon.classList.remove('hidden');
-            elements.musicToggleBtn.style.color = ''; // Reset color
+            elements.musicToggleBtn.style.color = '';
         }
     });
 
-    // Leaderboard button (Game Over)
+    // Leaderboard button
     elements.leaderboardBtn.addEventListener('click', () => {
         leaderboardOrigin = 'gameover';
         leaderboardController.show('easy');
     });
 
-    // Leaderboard button (Start Menu)
     const startLeaderboardBtn = document.getElementById('start-leaderboard-btn');
     if (startLeaderboardBtn) {
         startLeaderboardBtn.addEventListener('click', (e) => {
@@ -510,7 +365,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // About Button (Start Menu)
+    // About Button
     if (elements.aboutBtn) {
         elements.aboutBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -529,20 +384,17 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.hideLeaderboardView(leaderboardOrigin);
         leaderboardController.close();
         if (leaderboardOrigin === 'custom-browser') {
-            customBrowserView.classList.remove('hidden');
+            document.getElementById('custom-browser-view').classList.remove('hidden');
         }
     });
 
     // Responsive UI Scaling
     const updateUIScale = () => {
         const minDim = Math.min(window.innerWidth, window.innerHeight);
-        // Base scale on a reference dimension of 450px
-        // Allow it to scale down to 0.6 (small inline) and up to 1.2 (desktop)
         const scale = Math.min(Math.max(minDim / 450, 0.6), 1.2);
         document.documentElement.style.setProperty('--ui-scale', scale);
     };
 
-    // Window resize
     window.addEventListener('resize', () => {
         game.resizeCanvas();
         updateUIScale();
@@ -556,3 +408,6 @@ document.addEventListener('DOMContentLoaded', () => {
     game.setDifficulty(currentDifficulty);
     migrateUserScores();
 });
+
+// removed custom maps browser inline logic - moved to custom-maps-browser.js
+```Summary: Refactored `script.js`, `ui.js`, and `leaderboard-controller.js` by breaking them down into modular controllers. Created `ui-hud-controller.js`, `ui-vs-controller.js`, `leaderboard-detail-controller.js`, and `custom-maps-browser.js` to handle specific logic for HUD, VS UI, Leaderboard Details, and Custom Map browsing respectively. Updates the main files to delegate to these new classes, reducing file size and improving maintainability.
