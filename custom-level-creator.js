@@ -25,7 +25,26 @@ export class CustomLevelCreator {
 
         // UI Buttons
         document.getElementById('creator-cancel-btn').addEventListener('click', () => this.close());
-        document.getElementById('creator-undo-btn').addEventListener('click', () => this.undo());
+        document.getElementById('creator-clear-btn').addEventListener('click', () => this.reset());
+        
+        // Eraser with hold functionality
+        const eraserBtn = document.getElementById('creator-eraser-btn');
+        let eraserInterval;
+        const startErasing = (e) => {
+            e.preventDefault();
+            this.erase();
+            eraserInterval = setInterval(() => this.erase(), 50);
+        };
+        const stopErasing = () => {
+            clearInterval(eraserInterval);
+        };
+        
+        eraserBtn.addEventListener('mousedown', startErasing);
+        eraserBtn.addEventListener('touchstart', startErasing);
+        eraserBtn.addEventListener('mouseup', stopErasing);
+        eraserBtn.addEventListener('touchend', stopErasing);
+        eraserBtn.addEventListener('mouseleave', stopErasing);
+
         document.getElementById('creator-finish-btn').addEventListener('click', () => this.finish());
         
         // Open Creator
@@ -59,8 +78,13 @@ export class CustomLevelCreator {
         this.render();
     }
 
-    undo() {
-        this.reset(); // For now, simple clear. Complex undo for path segments is tricky with single stroke requirement.
+    erase() {
+        if (this.points.length > 0) {
+            // Remove points from the end
+            this.points.splice(-5); 
+            this.isValid = false; // Opened the loop
+            this.render();
+        }
     }
 
     getPoint(e) {
@@ -73,8 +97,16 @@ export class CustomLevelCreator {
 
     startDrawing(e) {
         this.isDrawing = true;
-        this.points = [this.getPoint(e)];
-        this.isValid = false;
+        const p = this.getPoint(e);
+        
+        // If we have points, check if we are continuing or resetting
+        if (this.points.length > 0 && !this.isValid) {
+            // Continue from end
+        } else {
+            // New start if empty or if previous was valid (finished loop)
+            this.points = [p];
+            this.isValid = false;
+        }
         this.render();
     }
 
@@ -136,6 +168,9 @@ export class CustomLevelCreator {
         const livesInput = document.getElementById('creator-lives');
         if (livesInput) livesInput.value = mapData.lives || 3;
 
+        const drainInput = document.getElementById('creator-drain');
+        if (drainInput) drainInput.checked = mapData.drainEnabled !== false; // Default true
+
         this.isValid = true; // Assumed valid since it was saved
         this.isDrawing = false;
         this.render();
@@ -170,9 +205,12 @@ export class CustomLevelCreator {
 
         const livesInput = document.getElementById('creator-lives');
         const lives = parseInt(livesInput.value, 10);
+        
+        const drainInput = document.getElementById('creator-drain');
+        const drainEnabled = drainInput.checked;
 
         try {
-            await createCustomMap({ points: normalizedPoints, lives: lives });
+            await createCustomMap({ points: normalizedPoints, lives: lives, drainEnabled: drainEnabled });
             alert("Map saved as a new entry!");
             this.close();
             // trigger refresh of browser?

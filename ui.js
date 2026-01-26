@@ -71,7 +71,7 @@ export class UIController {
         this.elements.submitScoreBtn.textContent = 'Submit Score';
     }
 
-    async showGameScreen(mode = 'standard') {
+    async showGameScreen(mode = 'standard', customSettings = null) {
         this.elements.startMenu.classList.add('hidden');
         this.elements.gameOverMenu.classList.add('hidden');
         this.elements.scoreDisplay.classList.remove('hidden');
@@ -86,7 +86,22 @@ export class UIController {
             // New Custom HUD Logic
             this.elements.playerHeartsContainer.classList.add('hidden'); // Use new container instead
             
-            if (livesDisplay) livesDisplay.classList.add('hidden');
+            const useDrain = customSettings?.drainEnabled !== false;
+
+            if (useDrain) {
+                 if (livesDisplay) livesDisplay.classList.add('hidden');
+                 if (customHearts) {
+                    customHearts.classList.remove('hidden');
+                    customHearts.innerHTML = '';
+                    for(let i=0; i<3; i++) {
+                        customHearts.innerHTML += generateHeartSVG('custom', i);
+                    }
+                    this.animateHearts(300, 'custom');
+                }
+            } else {
+                if (livesDisplay) livesDisplay.classList.remove('hidden');
+                if (customHearts) customHearts.classList.add('hidden');
+            }
             
             if (hudPfp) {
                 hudPfp.classList.remove('hidden');
@@ -96,15 +111,6 @@ export class UIController {
                 } catch(e) {
                     hudPfp.classList.add('hidden');
                 }
-            }
-
-            if (customHearts) {
-                customHearts.classList.remove('hidden');
-                customHearts.innerHTML = '';
-                for(let i=0; i<3; i++) {
-                    customHearts.innerHTML += generateHeartSVG('custom', i);
-                }
-                this.animateHearts(300, 'custom');
             }
 
         } else {

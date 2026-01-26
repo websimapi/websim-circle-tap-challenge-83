@@ -319,9 +319,8 @@ document.addEventListener('DOMContentLoaded', () => {
         customBrowserView.classList.add('hidden');
         game.setMode('custom', map);
         game.start('easy'); 
-        ui.showGameScreen('custom');
+        ui.showGameScreen('custom', map);
         ui.updateDifficulty('custom');
-        // ui.updateLives is skipped in favor of hearts
     }
 
     window.addEventListener('refreshCustomMaps', () => {

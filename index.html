@@ -35,10 +35,17 @@
                     <option value="999">∞</option>
                 </select>
             </div>
+            <div class="setting-item">
+                <label>Drain:</label>
+                <input type="checkbox" id="creator-drain" checked style="width: 20px; height: 20px;">
+            </div>
         </div>
         <div class="creator-ui-bottom">
             <button id="creator-cancel-btn" class="menu-btn">Cancel</button>
-            <button id="creator-undo-btn" class="menu-btn">Undo</button>
+            <button id="creator-clear-btn" class="menu-btn">Clear</button>
+            <button id="creator-eraser-btn" class="menu-btn icon-only" aria-label="Eraser" title="Erase from end">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.24 3.56l4.95 4.94c.78.79.78 2.05 0 2.84L12 20.53a4.008 4.008 0 0 1-5.66 0L2.81 17c-.78-.79-.78-2.05 0-2.84l10.6-10.6c.79-.78 2.05-.78 2.83 0zM4.22 15.58l3.54 3.53c.78.79 2.04.79 2.83 0l8.48-8.48-6.37-6.37L4.22 15.58z"/></svg>
+            </button>
             <button id="creator-finish-btn" class="menu-btn icon-only hidden" aria-label="Finish">
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
             </button>

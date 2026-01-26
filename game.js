@@ -171,9 +171,14 @@ export class Game {
         }
         
         if (this.mode === 'custom') {
-            // Custom mode now uses health drain mechanic instead of discrete lives
-            this.lives = 3; // Kept for legacy props, but health is primary
-            if (this.onLivesUpdate) this.onLivesUpdate(null); // Hide lives text
+            const useDrain = this.customMapData?.drainEnabled !== false;
+            if (useDrain) {
+                this.lives = 3; 
+                if (this.onLivesUpdate) this.onLivesUpdate(null);
+            } else {
+                this.lives = this.customMapData?.lives || 3;
+                if (this.onLivesUpdate) this.onLivesUpdate(this.lives);
+            }
         }
 
         this.generateNewTarget();
@@ -300,8 +305,8 @@ export class Game {
                 if (this.vsManagerUpdate) this.vsManagerUpdate(deltaTime);
             } else if (this.mode === 'custom') {
                 // Custom Map Drain Logic
-                // Only drain if we passed the mark (grace period over)
-                if (this.hasPassedMark) {
+                const useDrain = this.customMapData?.drainEnabled !== false;
+                if (useDrain && this.hasPassedMark) {
                     const DRAIN_RATE = 15; // Constant pressure
                     this.health = Math.max(0, this.health - DRAIN_RATE * deltaTime);
                 }
@@ -351,7 +356,10 @@ export class Game {
 
             // Custom Mode Health Gain
             if (this.mode === 'custom') {
-                this.health = Math.min(300, this.health + 40); // Gain health on success
+                const useDrain = this.customMapData?.drainEnabled !== false;
+                if (useDrain) {
+                    this.health = Math.min(300, this.health + 40);
+                }
             }
 
             const lastFrame = this.replayFrames[this.replayFrames.length - 1];
@@ -376,13 +384,24 @@ export class Game {
                 this.gameOver();
             } else if (this.mode === 'custom') {
                 playFail();
-                // Custom Mode Drain Penalty
-                this.health = Math.max(0, this.health - 50); // Big penalty for miss
+                
+                const useDrain = this.customMapData?.drainEnabled !== false;
+                if (useDrain) {
+                    // Custom Mode Drain Penalty
+                    this.health = Math.max(0, this.health - 50); // Big penalty for miss
+                    if (this.health <= 0) {
+                        this.gameOver();
+                    }
+                } else {
+                    // Lives Logic
+                    this.lives--;
+                    if (this.onLivesUpdate) this.onLivesUpdate(this.lives);
+                    if (this.lives <= 0) {
+                        this.gameOver();
+                    }
+                }
                 this.generateNewTarget();
                 
-                if (this.health <= 0) {
-                    this.gameOver();
-                }
             } else if (this.mode === 'zen') {
                 playFail();
                 // Zen penalty: reduced score, drop level
