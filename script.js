@@ -9,8 +9,12 @@ import { VSManager } from './vs-manager.js';
 import { CustomLevelCreator } from './custom-level-creator.js';
 import { saveCustomMapScore } from './custom-maps-api.js';
 import { CustomMapsBrowser } from './custom-maps-browser.js';
+import { injectTemplates } from './ui-templates.js';
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Inject HTML for large UI views (Refactor)
+    injectTemplates();
+
     const canvas = document.getElementById('game-canvas');
     let hasInteracted = false;
 
