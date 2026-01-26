@@ -271,6 +271,60 @@ const getLevelColor = (level) => {
   const hue = (level - 1) * 40 % 360;
   return `hsl(${hue}, 100%, 60%)`;
 };
+const CustomModeOverlay = ({ score, health, user, prefetchedAvatarUrl, config }) => {
+  const hearts = [];
+  for (let i = 0; i < 3; i++) {
+    const h = Math.max(0, Math.min(100, health - i * 100)) / 100;
+    hearts.push(/* @__PURE__ */ jsxDEV(HeartIcon, { percentage: h }, i, false, {
+      fileName: "<stdin>",
+      lineNumber: 198,
+      columnNumber: 21
+    }));
+  }
+  return /* @__PURE__ */ jsxDEV("div", { style: {
+    position: "absolute",
+    top: "20px",
+    left: "20px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+    zIndex: 10
+  }, children: [
+    /* @__PURE__ */ jsxDEV("div", { style: { display: "flex", alignItems: "center", gap: "15px" }, children: [
+      /* @__PURE__ */ jsxDEV(Avatar, { user, prefetchedAvatarUrl }, void 0, false, {
+        fileName: "<stdin>",
+        lineNumber: 213,
+        columnNumber: 17
+      }),
+      /* @__PURE__ */ jsxDEV("div", { style: {
+        fontSize: "3rem",
+        fontWeight: "bold",
+        color: config.colors.fail,
+        textShadow: "0 2px 4px rgba(0,0,0,0.5)"
+      }, children: [
+        "Score: ",
+        score
+      ] }, void 0, true, {
+        fileName: "<stdin>",
+        lineNumber: 214,
+        columnNumber: 17
+      })
+    ] }, void 0, true, {
+      fileName: "<stdin>",
+      lineNumber: 212,
+      columnNumber: 13
+    }),
+    /* @__PURE__ */ jsxDEV("div", { style: { display: "flex", gap: "5px", transform: "scale(1.2)", transformOrigin: "top left", marginLeft: "5px" }, children: hearts }, void 0, false, {
+      fileName: "<stdin>",
+      lineNumber: 225,
+      columnNumber: 13
+    })
+  ] }, void 0, true, {
+    fileName: "<stdin>",
+    lineNumber: 202,
+    columnNumber: 9
+  });
+};
 const VSLayout = ({ frameData, config, prefetchedAvatarUrl, prefetchedOpponentAvatarUrl }) => {
   const oppData = frameData.opponent || { angle: -Math.PI / 2, targetStart: 0, targetSize: 0, level: 1, health: 300, score: 0 };
   const oppLevel = oppData.level || 1;
@@ -300,7 +354,7 @@ const VSLayout = ({ frameData, config, prefetchedAvatarUrl, prefetchedOpponentAv
       false,
       {
         fileName: "<stdin>",
-        lineNumber: 213,
+        lineNumber: 251,
         columnNumber: 13
       }
     ),
@@ -317,18 +371,19 @@ const VSLayout = ({ frameData, config, prefetchedAvatarUrl, prefetchedOpponentAv
       false,
       {
         fileName: "<stdin>",
-        lineNumber: 220,
+        lineNumber: 258,
         columnNumber: 13
       }
     )
   ] }, void 0, true, {
     fileName: "<stdin>",
-    lineNumber: 212,
+    lineNumber: 250,
     columnNumber: 9
   });
 };
 export {
   Avatar,
+  CustomModeOverlay,
   EndScreenOverlay,
   LevelDisplay,
   VSLayout

@@ -3,7 +3,7 @@ import React from "react";
 import { AbsoluteFill, useCurrentFrame, interpolate, Audio, Sequence, useVideoConfig } from "remotion";
 import { StarfieldBackground } from "./composition-background.jsx";
 import { GameCanvas } from "./composition-visuals.jsx";
-import { LevelDisplay, EndScreenOverlay, VSLayout } from "./composition-ui.jsx";
+import { LevelDisplay, EndScreenOverlay, VSLayout, CustomModeOverlay } from "./composition-ui.jsx";
 const ReplayComposition = ({ replayData, prefetchedAvatarUrl, prefetchedOpponentAvatarUrl }) => {
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
@@ -60,7 +60,7 @@ const ReplayComposition = ({ replayData, prefetchedAvatarUrl, prefetchedOpponent
       lineNumber: 73,
       columnNumber: 13
     }),
-    !showEndScreen && /* @__PURE__ */ jsxDEV("div", { style: {
+    !showEndScreen && !isVS && config.mode !== "custom" && /* @__PURE__ */ jsxDEV("div", { style: {
       position: "absolute",
       top: "20px",
       left: "20px",
@@ -70,11 +70,31 @@ const ReplayComposition = ({ replayData, prefetchedAvatarUrl, prefetchedOpponent
       fontFamily: "Arial, sans-serif",
       zIndex: 10,
       textShadow: "0 2px 4px rgba(0,0,0,0.3)"
-    }, children: isVS ? "" : `Score: ${score}` }, void 0, false, {
+    }, children: [
+      "Score: ",
+      score
+    ] }, void 0, true, {
       fileName: "<stdin>",
       lineNumber: 76,
       columnNumber: 17
     }),
+    !showEndScreen && config.mode === "custom" && /* @__PURE__ */ jsxDEV(
+      CustomModeOverlay,
+      {
+        score,
+        health: currentFrameData.health,
+        user: currentUser,
+        prefetchedAvatarUrl,
+        config
+      },
+      void 0,
+      false,
+      {
+        fileName: "<stdin>",
+        lineNumber: 92,
+        columnNumber: 17
+      }
+    ),
     /* @__PURE__ */ jsxDEV(AbsoluteFill, { style: { justifyContent: "center", alignItems: "center" }, children: [
       !isVS && /* @__PURE__ */ jsxDEV(
         LevelDisplay,
@@ -86,7 +106,7 @@ const ReplayComposition = ({ replayData, prefetchedAvatarUrl, prefetchedOpponent
         false,
         {
           fileName: "<stdin>",
-          lineNumber: 93,
+          lineNumber: 103,
           columnNumber: 21
         }
       ),
@@ -102,36 +122,36 @@ const ReplayComposition = ({ replayData, prefetchedAvatarUrl, prefetchedOpponent
         false,
         {
           fileName: "<stdin>",
-          lineNumber: 101,
+          lineNumber: 111,
           columnNumber: 21
         }
       ) : /* @__PURE__ */ jsxDEV("div", { style: { width: "90%", height: "auto", aspectRatio: "1 / 1" }, children: /* @__PURE__ */ jsxDEV(GameCanvas, { frameData: currentFrameData, config }, void 0, false, {
         fileName: "<stdin>",
-        lineNumber: 109,
+        lineNumber: 119,
         columnNumber: 25
       }) }, void 0, false, {
         fileName: "<stdin>",
-        lineNumber: 108,
+        lineNumber: 118,
         columnNumber: 21
       })
     ] }, void 0, true, {
       fileName: "<stdin>",
-      lineNumber: 91,
+      lineNumber: 101,
       columnNumber: 13
     }),
     showEndScreen && /* @__PURE__ */ jsxDEV(EndScreenOverlay, { score, level, user: currentUser, isGameOver, prefetchedAvatarUrl, config }, void 0, false, {
       fileName: "<stdin>",
-      lineNumber: 114,
+      lineNumber: 124,
       columnNumber: 32
     }),
     /* @__PURE__ */ jsxDEV(Audio, { src: "/Infinite Orbit - Track 1 (Extended 2) - Sonauto.ogg", volume: musicVolume, loop: true }, void 0, false, {
       fileName: "<stdin>",
-      lineNumber: 116,
+      lineNumber: 126,
       columnNumber: 13
     }),
     /* @__PURE__ */ jsxDEV(Audio, { src: "/start_sound.mp3", volume: 0.5 }, void 0, false, {
       fileName: "<stdin>",
-      lineNumber: 117,
+      lineNumber: 127,
       columnNumber: 13
     }),
     successFrames.map((f, i) => {
@@ -139,11 +159,11 @@ const ReplayComposition = ({ replayData, prefetchedAvatarUrl, prefetchedOpponent
       if (frameForAudio < gameEndFrame) {
         return /* @__PURE__ */ jsxDEV(Sequence, { from: frameForAudio, children: /* @__PURE__ */ jsxDEV(Audio, { src: "/success.mp3" }, void 0, false, {
           fileName: "<stdin>",
-          lineNumber: 124,
+          lineNumber: 134,
           columnNumber: 25
         }) }, `success-${i}`, false, {
           fileName: "<stdin>",
-          lineNumber: 123,
+          lineNumber: 133,
           columnNumber: 22
         });
       }
@@ -151,11 +171,11 @@ const ReplayComposition = ({ replayData, prefetchedAvatarUrl, prefetchedOpponent
     }),
     isGameOver && /* @__PURE__ */ jsxDEV(Sequence, { from: gameEndFrame - 1, children: /* @__PURE__ */ jsxDEV(Audio, { src: "/fail.mp3" }, void 0, false, {
       fileName: "<stdin>",
-      lineNumber: 133,
+      lineNumber: 143,
       columnNumber: 21
     }) }, void 0, false, {
       fileName: "<stdin>",
-      lineNumber: 132,
+      lineNumber: 142,
       columnNumber: 17
     })
   ] }, void 0, true, {

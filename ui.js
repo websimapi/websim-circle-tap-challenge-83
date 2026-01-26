@@ -71,26 +71,48 @@ export class UIController {
         this.elements.submitScoreBtn.textContent = 'Submit Score';
     }
 
-    showGameScreen(mode = 'standard') {
+    async showGameScreen(mode = 'standard') {
         this.elements.startMenu.classList.add('hidden');
         this.elements.gameOverMenu.classList.add('hidden');
         this.elements.scoreDisplay.classList.remove('hidden');
         this.elements.levelDisplay.classList.remove('level-out', 'level-in');
         this.elements.difficultyIndicator.classList.remove('hidden');
         
+        const hudPfp = document.getElementById('hud-pfp');
+        const customHearts = document.getElementById('custom-hearts-container');
+        const livesDisplay = document.getElementById('lives-display');
+        
         if (mode === 'custom') {
-            this.elements.playerHeartsContainer.classList.remove('hidden');
-            // Setup hearts
-            this.elements.playerHearts.innerHTML = '';
-            for(let i=0; i<3; i++) {
-                this.elements.playerHearts.innerHTML += generateHeartSVG('player', i);
-            }
-            this.animateHearts(300, 'player');
-            // Hide standard lives display
-            const livesDisplay = document.getElementById('lives-display');
+            // New Custom HUD Logic
+            this.elements.playerHeartsContainer.classList.add('hidden'); // Use new container instead
+            
             if (livesDisplay) livesDisplay.classList.add('hidden');
+            
+            if (hudPfp) {
+                hudPfp.classList.remove('hidden');
+                try {
+                    const user = await window.websim.getCurrentUser();
+                    hudPfp.src = user.avatarUrl || `https://images.websim.com/avatar/${user.username}`;
+                } catch(e) {
+                    hudPfp.classList.add('hidden');
+                }
+            }
+
+            if (customHearts) {
+                customHearts.classList.remove('hidden');
+                customHearts.innerHTML = '';
+                for(let i=0; i<3; i++) {
+                    customHearts.innerHTML += generateHeartSVG('custom', i);
+                }
+                this.animateHearts(300, 'custom');
+            }
+
         } else {
+            // Standard Mode
             this.elements.playerHeartsContainer.classList.add('hidden');
+            if (hudPfp) hudPfp.classList.add('hidden');
+            if (customHearts) customHearts.classList.add('hidden');
+            if (livesDisplay) livesDisplay.classList.remove('hidden');
         }
 
         // Force reflow
@@ -381,7 +403,8 @@ export class UIController {
     }
 
     updatePlayerHearts(health) {
-        this.animateHearts(health, 'player');
+        this.animateHearts(health, 'player'); // VS mode container
+        this.animateHearts(health, 'custom'); // Custom mode container
     }
 
     updateOpponentHearts(health) {
